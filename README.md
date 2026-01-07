@@ -9,7 +9,6 @@ time-tracker/
 ├── backend/                 # Express.js server and database logic
 │   ├── index.js            # Main server file
 │   ├── src/                # Additional server modules
-│   ├── public/             # Static files served by backend
 │   ├── .env               # Environment variables
 │   ├── package.json       # Backend dependencies
 │   └── *.sql             # Database setup files
