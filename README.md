@@ -116,9 +116,17 @@ cp .env.example .env
 
 #### Backend Server (with frontend served statically)
 
+**Important**: Navigate to the backend directory before running commands:
+
 ```bash
 cd backend
 npm start
+```
+
+Or run directly from the project root:
+
+```bash
+cd /Users/goodevaninja_mac1/Documents/Asep Septiadi/Portofolio/time-tracker/backend && npm start
 ```
 
 The server will start on http://localhost:3000
@@ -130,6 +138,12 @@ For development purposes, you can run the frontend separately:
 ```bash
 cd frontend
 npm run dev
+```
+
+Or run directly from the project root:
+
+```bash
+cd /Users/goodevaninja_mac1/Documents/Asep Septiadi/Portofolio/time-tracker/frontend && npm run dev
 ```
 
 ## 🌐 API Endpoints
