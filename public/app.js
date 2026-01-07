@@ -63,6 +63,10 @@ async function loadTasks(){
       <div class="card-left">
         <div class="title">${t.title}</div>
         <div class="meta">${t.total_duration_readable} • ${t.sessions_count} session(s)</div>
+        <div class="dates">
+          <small>Created: ${fmtDate(t.created_at)}</small>
+          ${t.completed_at ? `<small class="completed-date">Completed: ${fmtDate(t.completed_at)}</small>` : ''}
+        </div>
       </div>
       <div class="actions">
         <div class="controls">
@@ -116,7 +120,12 @@ async function openDetail(taskId){
 
   const info = document.createElement('div');
   const total = detail.sessions.reduce((a,b)=>a+b.duration,0);
-  info.innerHTML = `<div class="pill">Total: ${secondsToHuman(total)}</div><div class="pill">Range: ${fmtDate(detail.sessions[0]?.start_time)} → ${fmtDate(detail.sessions[detail.sessions.length-1]?.end_time)}</div>`;
+  info.innerHTML = `
+    <div class="pill">Total: ${secondsToHuman(total)}</div>
+    <div class="pill">Range: ${fmtDate(detail.sessions[0]?.start_time)} → ${fmtDate(detail.sessions[detail.sessions.length-1]?.end_time)}</div>
+    <div class="pill">Created: ${fmtDate(detail.task.created_at)}</div>
+    ${detail.task.completed_at ? `<div class="pill completed-info">Completed: ${fmtDate(detail.task.completed_at)}</div>` : ''}
+  `;
   dlg.appendChild(info);
 
   const sessionsWrap = document.createElement('div');
@@ -163,7 +172,10 @@ function editTaskPrompt(id){
 
 function deleteTaskConfirm(id){
   if (!confirm('Delete task and its sessions?')) return;
-  api(`/api/tasks/${id}`, { method: 'DELETE' }).then(()=> loadTasks()).catch(err=>alert(err));
+  api(`/api/tasks/${id}`, { method: 'DELETE' }).then(()=> {
+    loadTasks();
+    loadHistoryTasks(); // Reload history tasks after task is deleted
+  }).catch(err=>alert(err));
 }
 
 function deleteSessionConfirm(taskId, sessionId){
@@ -274,6 +286,7 @@ async function toggleTaskStatus(taskId, currentStatus) {
       })
     });
     loadTasks(); // Reload tasks to reflect the status change
+    loadHistoryTasks(); // Reload history tasks to reflect the status change
   } catch (error) {
     console.error('Error updating task status:', error);
     alert('Failed to update task status');
@@ -303,6 +316,7 @@ async function stopTimerFor(taskId){
     runningTaskId = null; runningStart = null; saveRunningToStorage();
     refreshRunningUI();
     loadTasks();
+    loadHistoryTasks(); // Reload history tasks after session is saved
     alert('Session saved: ' + formatElapsed(elapsed));
   }catch(err){
     alert('Failed to save session: ' + err);
@@ -321,6 +335,7 @@ document.getElementById('taskForm').addEventListener('submit', async (e) =>{
   await api('/api/tasks', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({title, description}) });
   e.target.reset();
   loadTasks();
+  loadHistoryTasks(); // Reload history tasks after task is created
 });
 
 // NOTE: manual session form removed; live timer handles creating sessions now.
@@ -331,6 +346,7 @@ document.getElementById('refresh').addEventListener('click', async (e)=>{
   const start = Date.now();
   try{
     await loadTasks();
+    await loadHistoryTasks();
   }catch(err){
     console.error(err);
   }
@@ -340,7 +356,55 @@ document.getElementById('refresh').addEventListener('click', async (e)=>{
   setTimeout(()=> btn.classList.remove('loading'), remaining);
 });
 
+// Load history tasks
+async function loadHistoryTasks() {
+  try {
+    const historyData = await api('/api/history');
+    const historyContainer = document.getElementById('historyTasks');
+    historyContainer.innerHTML = '';
+
+    if (historyData.length === 0) {
+      historyContainer.innerHTML = '<p>No task history available.</p>';
+      return;
+    }
+
+    historyData.forEach(group => {
+      const dateGroup = document.createElement('div');
+      dateGroup.className = 'history-date-group';
+
+      const dateLabel = document.createElement('div');
+      dateLabel.className = `date-label ${group.dateLabel === 'Hari Ini' ? 'hari-ini' : ''}`;
+      dateLabel.textContent = group.dateLabel;
+
+      const progress = document.createElement('div');
+      progress.className = 'progress';
+      progress.textContent = group.progress;
+
+      dateGroup.appendChild(dateLabel);
+      dateGroup.appendChild(progress);
+
+      historyContainer.appendChild(dateGroup);
+
+      // Add tasks for this date
+      group.tasks.forEach(task => {
+        const taskItem = document.createElement('div');
+        taskItem.className = 'task-item';
+
+        const taskTitle = document.createElement('div');
+        taskTitle.className = 'task-title';
+        taskTitle.textContent = task.title;
+
+        taskItem.appendChild(taskTitle);
+        historyContainer.appendChild(taskItem);
+      });
+    });
+  } catch (error) {
+    console.error('Failed to load history tasks:', error);
+  }
+}
+
 loadTasks().catch(err => console.error(err));
+loadHistoryTasks().catch(err => console.error(err));
 
 // Theme handling: toggle and persist preference
 function applyTheme(theme){
@@ -387,6 +451,7 @@ document.getElementById('taskEditForm').addEventListener('submit', async (e)=>{
   await api(`/api/tasks/${id}`, { method: 'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ title, description }) });
   document.getElementById('taskEditDlg').close();
   loadTasks();
+  loadHistoryTasks(); // Reload history tasks after task is edited
 });
 document.getElementById('cancelEditTask').addEventListener('click', ()=> document.getElementById('taskEditDlg').close());
 
@@ -403,5 +468,6 @@ document.getElementById('sessionEditForm').addEventListener('submit', async (e)=
   await api(`/api/tasks/${taskId}/sessions/${sessionId}`, { method: 'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ start_time: startIso, end_time: endIso }) });
   document.getElementById('sessionEditDlg').close();
   openDetail(taskId);
+  loadHistoryTasks(); // Reload history tasks after session is edited
 });
 document.getElementById('cancelEditSession').addEventListener('click', ()=> document.getElementById('sessionEditDlg').close());
