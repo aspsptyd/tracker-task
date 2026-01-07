@@ -49,15 +49,15 @@ time-tracker/
 
 ### For Network Database Access (Recommended)
 
-This application is configured to connect to a remote MySQL server at IP address `192.168.100.45`. To use this setup:
+This application is configured to connect to a remote MySQL server. To use this setup:
 
-1. Ensure you're on the same network as the database server (192.168.100.x network)
+1. Ensure you're on the same network as the database server
 2. Verify the database server is running and accessible
 3. Default credentials:
-   - host: `192.168.100.45`
-   - user: `root`
-   - pass: `!!&21adi`
-   - db: `time_tracker`
+   - host: `<DATABASE_HOST>`
+   - user: `<DATABASE_USER>`
+   - pass: `<DATABASE_PASSWORD>`
+   - db: `<DATABASE_NAME>`
 
 ### For Local XAMPP Setup (Alternative)
 
@@ -226,7 +226,7 @@ cd backend
 DB_HOST=localhost DB_USER=root DB_PASS= DB_NAME=time_tracker npm start
 
 # example: run server on port 3001 with different DB settings
-PORT=3001 DB_HOST=localhost DB_USER=root DB_PASS=your_password npm start
+PORT=3001 DB_HOST=localhost DB_USER=root DB_PASS=<your_password> npm start
 ```
 
 | Variable | Description | Default |
@@ -246,7 +246,7 @@ For local development, you can run a local MySQL instance:
 # Start MySQL locally (using Docker, XAMPP, or native installation)
 # Then run the app with local DB settings
 cd backend
-DB_HOST=127.0.0.1 DB_USER=root DB_PASS=your_local_password npm start
+DB_HOST=127.0.0.1 DB_USER=root DB_PASS=<your_local_password> npm start
 ```
 
 ### Cross-platform Notes
