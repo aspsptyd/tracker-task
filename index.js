@@ -74,6 +74,63 @@ async function main() {
 
   app.get('/api/ping', (req, res) => res.json({ ok: true, db: DB_HOST }));
 
+  // Dashboard Stats
+  app.get('/api/stats', async (req, res) => {
+    try {
+      // 1. Total Task Today
+      const todayStart = new Date();
+      todayStart.setHours(0, 0, 0, 0);
+      const todayEnd = new Date();
+      todayEnd.setHours(23, 59, 59, 999);
+
+      const [todayTasks] = await pool.query(`
+        SELECT COUNT(DISTINCT t.id) as count, COALESCE(SUM(ts.duration), 0) as total_duration
+        FROM tasks t
+        JOIN task_sessions ts ON t.id = ts.task_id
+        WHERE ts.start_time >= ? AND ts.start_time <= ?
+      `, [todayStart, todayEnd]);
+
+      // 2. Task Running (We can't know for sure from DB only as running state is client-side mostly, 
+      // but we can check if there are sessions that started but not ended? 
+      // Actually the current implementation sends start/end only when stopped.
+      // So "Task Running" is better tracked by client or we need a different DB structure.
+      // However, the requirement asks for "Task Running". 
+      // Since the current backend only stores COMPLETED sessions (start+end), 
+      // the backend doesn't know about currently running tasks unless we change the architecture.
+      // BUT, the prompt asks to "update codenya sekalian".
+      // For now, let's assume the client will handle "Task Running" count or we just return 0 from backend 
+      // and let client override if it has local state. 
+      // OR we can count tasks modified/created today as "active" context.
+      // Let's stick to what we can calculate:
+      
+      // 3. Total Task in Week
+      const weekStart = new Date();
+      weekStart.setDate(weekStart.getDate() - weekStart.getDay()); // Sunday
+      weekStart.setHours(0, 0, 0, 0);
+      
+      const [weekTasks] = await pool.query(`
+        SELECT COUNT(DISTINCT t.id) as count
+        FROM tasks t
+        JOIN task_sessions ts ON t.id = ts.task_id
+        WHERE ts.start_time >= ?
+      `, [weekStart]);
+
+      res.json({
+        today: {
+          count: todayTasks[0].count,
+          duration: todayTasks[0].total_duration,
+          duration_readable: secondsToString(todayTasks[0].total_duration)
+        },
+        week: {
+          count: weekTasks[0].count
+        }
+      });
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ error: 'Failed to fetch stats' });
+    }
+  });
+
   // Create task
   app.post('/api/tasks', async (req, res) => {
     const { title, description } = req.body;

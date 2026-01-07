@@ -12,6 +12,8 @@ Default DB credentials (can be overridden with env vars):
 - pass: `!!&21adi`
 - db: `time_tracker`
 
+Note: the remote DB host above may be inaccessible from your machine. For local development it's common to run a local MySQL instance and point `DB_HOST` to `127.0.0.1`.
+
 Install & run:
 
 ```bash
@@ -27,6 +29,12 @@ API endpoints (basic):
 - `GET /api/tasks` - list tasks with aggregated info
 - `POST /api/tasks` - create task { title, description }
 - `POST /api/tasks/:id/sessions` - add session { start_time, end_time } (ISO)
+
+Frontend UI
+-----------
+- The app provides a simple static frontend served at `/`.
+- The Tasks area is grouped into two subsections: **Running** (currently active timer) and **Queued** (other tasks). Use the Start/Stop buttons per task to create sessions.
+- Theme toggle (light/dark) is available in the topbar. Live timers persist in `localStorage` while running.
 
 Environment & Running
 ---------------------

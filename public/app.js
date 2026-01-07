@@ -25,6 +25,21 @@ function secondsToHuman(sec){
   return `${h}h ${m}m ${s}s`;
 }
 
+async function loadStats(){
+  try {
+    const stats = await api('/api/stats');
+    document.getElementById('statTotalToday').textContent = stats.today.count;
+    document.getElementById('statTotalDuration').textContent = stats.today.duration_readable;
+    document.getElementById('statTotalWeek').textContent = stats.week.count;
+    
+    // Task Running is handled by client state
+    const running = loadRunningFromStorage();
+    document.getElementById('statTaskRunning').textContent = running ? '1' : '0';
+  } catch(e) {
+    console.error('Failed to load stats', e);
+  }
+}
+
 async function loadTasks(){
   const tasks = await api('/api/tasks');
   const container = document.getElementById('tasks');
@@ -67,6 +82,7 @@ async function loadTasks(){
 
   // Refresh UI according to running state
   refreshRunningUI();
+  loadStats();
 }
 
 async function openDetail(taskId){
@@ -208,6 +224,10 @@ function refreshRunningUI(){
       if (timerEl) timerEl.textContent = '00:00:00';
     }
   });
+  
+  // Update running stat
+  const runningStat = document.getElementById('statTaskRunning');
+  if (runningStat) runningStat.textContent = runningTaskId ? '1' : '0';
 }
 
 async function startTimerFor(taskId){
