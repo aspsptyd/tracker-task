@@ -377,7 +377,7 @@ async function main() {
   });
 
   // Serve static frontend
-  app.use(express.static(path.join(__dirname, 'public')));
+  app.use(express.static(path.join(__dirname, '../frontend/src')));
 
   app.listen(PORT, () => {
     console.log(`Server started on http://localhost:${PORT}`);

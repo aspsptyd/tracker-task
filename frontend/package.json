@@ -1,0 +1,16 @@
+{
+  "name": "time-tracker-frontend",
+  "version": "1.0.0",
+  "description": "Frontend for Time Tracking application",
+  "main": "index.html",
+  "scripts": {
+    "dev": "http-server ./src -p 3001 -o",
+    "start": "http-server ./src -p 3001 -o"
+  },
+  "keywords": ["time-tracker", "frontend"],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "http-server": "^14.1.1"
+  }
+}
