@@ -2,9 +2,9 @@ const express = require('express');
 const mysql = require('mysql2/promise');
 const path = require('path');
 
-const DB_HOST = process.env.DB_HOST || '10.21.124.45';
+const DB_HOST = process.env.DB_HOST || 'localhost';
 const DB_USER = process.env.DB_USER || 'root';
-const DB_PASS = process.env.DB_PASS || '!!&21adi';
+const DB_PASS = process.env.DB_PASS || 'root'; // Change this to your local MySQL password
 const DB_NAME = process.env.DB_NAME || 'time_tracker';
 const PORT = process.env.PORT || 3000;
 
@@ -36,6 +36,7 @@ async function initDb() {
       id INT AUTO_INCREMENT PRIMARY KEY,
       title VARCHAR(255) NOT NULL,
       description TEXT,
+      status ENUM('active', 'completed') DEFAULT 'active',
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     ) ENGINE=InnoDB;
   `;
@@ -54,16 +55,6 @@ async function initDb() {
 
   await pool.query(createTasks);
   await pool.query(createSessions);
-
-  // Check if status column exists, if not add it
-  try {
-    const [columns] = await pool.query("SHOW COLUMNS FROM tasks LIKE 'status'");
-    if (columns.length === 0) {
-      await pool.query("ALTER TABLE tasks ADD COLUMN status ENUM('active', 'completed') DEFAULT 'active'");
-    }
-  } catch (err) {
-    console.error('Error checking/adding status column:', err);
-  }
 
   return pool;
 }

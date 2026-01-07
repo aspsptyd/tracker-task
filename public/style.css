@@ -11,6 +11,9 @@ form{display:flex;flex-direction:column;gap:8px}
 input,select,button{padding:10px;border:1px solid rgba(255,255,255,0.06);border-radius:10px;background:transparent;color:inherit}
 button{cursor:pointer;background:#2563eb;color:white;border:none}
 .timeline{background:linear-gradient(180deg,#071530 0%, #061026 100%);padding:16px;border-radius:12px}
+.task-sections{display:flex;flex-direction:column;gap:20px}
+.task-section{display:flex;flex-direction:column;gap:10px}
+.task-section h3{margin:0 0 10px 0;font-size:16px;font-weight:600;color:#9fb0d6}
 .tasks{display:flex;flex-direction:column;gap:10px}
 .card{display:flex;justify-content:space-between;align-items:center;padding:14px;background:linear-gradient(90deg,rgba(255,255,255,0.02),rgba(255,255,255,0.01));border-radius:10px}
 .card-left{flex:1;min-width:0}
@@ -82,3 +85,5 @@ body.light #refresh.loading::after{border:2px solid rgba(15,23,42,0.12);border-t
 .card .controls{display:flex;gap:8px;align-items:center}
 .card .controls button{padding:6px 10px;border-radius:8px}
 .card.running{box-shadow:0 6px 18px rgba(37,99,235,0.12);border:1px solid rgba(37,99,235,0.12)}
+.card.completed{opacity:0.7;background:linear-gradient(90deg,rgba(255,255,255,0.01),rgba(255,255,255,0.005));}
+.card.completed .title{text-decoration:line-through;color:#94a3b8;}
