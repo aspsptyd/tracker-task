@@ -24,13 +24,29 @@
             <input id="description" placeholder="Description" />
             <button type="submit">Create</button>
           </form>
-
-        <!-- Live timer moved into each task card -->
         </aside>
 
-        <section class="timeline">
-          <h2>Tasks</h2>
-          <div id="tasks" class="tasks"></div>
+        <section class="content-area">
+          <div class="stats-grid">
+            <div class="stat-card">
+              <h3>Total Task Today</h3>
+              <div class="stat-value" id="statTotalToday">0</div>
+              <div class="stat-sub" id="statTotalDuration">0h 0m 0s</div>
+            </div>
+            <div class="stat-card">
+              <h3>Task Running</h3>
+              <div class="stat-value" id="statTaskRunning">0</div>
+            </div>
+            <div class="stat-card">
+              <h3>Total Task in Week</h3>
+              <div class="stat-value" id="statTotalWeek">0</div>
+            </div>
+          </div>
+
+          <div class="timeline">
+            <h2>Tasks</h2>
+            <div id="tasks" class="tasks"></div>
+          </div>
         </section>
       </main>
 
