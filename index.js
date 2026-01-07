@@ -1,10 +1,11 @@
+require('dotenv').config();
 const express = require('express');
 const mysql = require('mysql2/promise');
 const path = require('path');
 
-const DB_HOST = process.env.DB_HOST || '10.21.124.45';
+const DB_HOST = process.env.DB_HOST || 'localhost';
 const DB_USER = process.env.DB_USER || 'root';
-const DB_PASS = process.env.DB_PASS || '!!&21adi';
+const DB_PASS = process.env.DB_PASS || ''; // Kosongkan jika tidak menggunakan password
 const DB_NAME = process.env.DB_NAME || 'time_tracker';
 const PORT = process.env.PORT || 3000;
 
@@ -36,7 +37,8 @@ async function initDb() {
       id INT AUTO_INCREMENT PRIMARY KEY,
       title VARCHAR(255) NOT NULL,
       description TEXT,
-      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      completed_at TIMESTAMP NULL
     ) ENGINE=InnoDB;
   `;
 
@@ -54,6 +56,26 @@ async function initDb() {
 
   await pool.query(createTasks);
   await pool.query(createSessions);
+
+  // Check if status column exists, if not add it
+  try {
+    const [columns] = await pool.query("SHOW COLUMNS FROM tasks LIKE 'status'");
+    if (columns.length === 0) {
+      await pool.query("ALTER TABLE tasks ADD COLUMN status ENUM('active', 'completed') DEFAULT 'active'");
+    }
+  } catch (err) {
+    console.error('Error checking/adding status column:', err);
+  }
+
+  // Check if completed_at column exists, if not add it
+  try {
+    const [columns] = await pool.query("SHOW COLUMNS FROM tasks LIKE 'completed_at'");
+    if (columns.length === 0) {
+      await pool.query("ALTER TABLE tasks ADD COLUMN completed_at TIMESTAMP NULL");
+    }
+  } catch (err) {
+    console.error('Error checking/adding completed_at column:', err);
+  }
 
   return pool;
 }
@@ -164,7 +186,9 @@ async function main() {
         t.id,
         t.title,
         t.description,
+        t.status,
         t.created_at,
+        t.completed_at,
         COALESCE(SUM(ts.duration), 0) AS total_duration,
         MIN(ts.start_time) AS first_start,
         MAX(ts.end_time) AS last_end,
@@ -172,7 +196,7 @@ async function main() {
       FROM tasks t
       LEFT JOIN task_sessions ts ON ts.task_id = t.id
       GROUP BY t.id
-      ORDER BY first_start DESC;
+      ORDER BY t.status ASC, first_start DESC;
     `;
     const [rows] = await pool.query(sql);
     res.json(rows.map(r => ({
@@ -193,9 +217,30 @@ async function main() {
   // Update task
   app.put('/api/tasks/:id', async (req, res) => {
     const id = req.params.id;
-    const { title, description } = req.body;
+    const { title, description, status } = req.body;
     if (!title) return res.status(400).json({ error: 'title required' });
-    await pool.query('UPDATE tasks SET title = ?, description = ? WHERE id = ?', [title, description || null, id]);
+    const updateFields = [];
+    const updateValues = [];
+
+    updateFields.push('title = ?');
+    updateValues.push(title);
+
+    updateFields.push('description = ?');
+    updateValues.push(description || null);
+
+    if (status) {
+      updateFields.push('status = ?');
+      updateValues.push(status);
+
+      // Set completed_at when status is 'completed', otherwise set to NULL
+      if (status === 'completed') {
+        updateFields.push('completed_at = NOW()');
+      } else {
+        updateFields.push('completed_at = NULL');
+      }
+    }
+
+    await pool.query(`UPDATE tasks SET ${updateFields.join(', ')} WHERE id = ?`, [...updateValues, id]);
     const [[task]] = await pool.query('SELECT * FROM tasks WHERE id = ?', [id]);
     res.json(task);
   });
@@ -226,6 +271,109 @@ async function main() {
     const { sessionId } = req.params;
     await pool.query('DELETE FROM task_sessions WHERE id = ?', [sessionId]);
     res.json({ ok: true });
+  });
+
+  // Get task history by date
+  app.get('/api/history', async (req, res) => {
+    try {
+      // Get all completed tasks with their session data
+      const [completedRows] = await pool.query(`
+        SELECT
+          t.id,
+          t.title,
+          t.description,
+          t.status,
+          t.created_at,
+          t.completed_at,
+          DATE(t.completed_at) as completion_date,
+          COALESCE(SUM(ts.duration), 0) AS total_duration
+        FROM tasks t
+        LEFT JOIN task_sessions ts ON ts.task_id = t.id
+        WHERE t.status = 'completed' AND t.completed_at IS NOT NULL
+        GROUP BY t.id
+        ORDER BY t.completed_at DESC
+      `);
+
+      // Get all tasks (both active and completed) grouped by creation date to calculate total per date
+      const [allRows] = await pool.query(`
+        SELECT
+          t.id,
+          t.title,
+          t.description,
+          t.status,
+          t.created_at,
+          t.completed_at,
+          DATE(t.created_at) as creation_date,
+          COALESCE(SUM(ts.duration), 0) AS total_duration
+        FROM tasks t
+        LEFT JOIN task_sessions ts ON ts.task_id = t.id
+        WHERE DATE(t.created_at) IN (
+          SELECT DISTINCT DATE(completed_at)
+          FROM tasks
+          WHERE status = 'completed' AND completed_at IS NOT NULL
+        )  -- Only get tasks from dates that have completed tasks
+        GROUP BY t.id
+        ORDER BY t.created_at DESC
+      `);
+
+      // Group completed tasks by completion date
+      const completedTasksByDate = {};
+      completedRows.forEach(task => {
+        const date = task.completion_date;
+        if (!completedTasksByDate[date]) {
+          completedTasksByDate[date] = [];
+        }
+        completedTasksByDate[date].push(task);
+      });
+
+      // Group all tasks by creation date (for calculating total tasks per date)
+      const allTasksByDate = {};
+      allRows.forEach(task => {
+        const date = task.creation_date;
+        if (!allTasksByDate[date]) {
+          allTasksByDate[date] = [];
+        }
+        allTasksByDate[date].push(task);
+      });
+
+      // Format the response with date labels and progress
+      const historyData = [];
+      const today = new Date().toISOString().split('T')[0]; // Format: YYYY-MM-DD
+      const options = { day: 'numeric', month: 'short', year: 'numeric' };
+
+      // Process each date that has completed tasks
+      for (const [date, completedTasks] of Object.entries(completedTasksByDate)) {
+        // Get all tasks for this date (both completed and not completed)
+        const allTasksForDate = allTasksByDate[date] || [];
+        const totalTasks = allTasksForDate.length;
+        const completedTasksCount = completedTasks.length;
+
+        // Format date label
+        let dateLabel;
+        if (date === today) {
+          dateLabel = "Hari Ini";
+        } else {
+          // Convert date string to proper date object for formatting
+          const dateObj = new Date(date);
+          dateLabel = dateObj.toLocaleDateString('id-ID', options);
+        }
+
+        historyData.push({
+          date: date,
+          dateLabel: dateLabel,
+          progress: `${completedTasksCount}/${totalTasks}`,
+          tasks: completedTasks
+        });
+      }
+
+      // Sort by date descending (most recent first)
+      historyData.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+      res.json(historyData);
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ error: 'Failed to fetch history data' });
+    }
   });
 
   // Serve static frontend
