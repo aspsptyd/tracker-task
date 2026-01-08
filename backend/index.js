@@ -276,8 +276,8 @@ async function main() {
   // Get task history by date
   app.get('/api/history', async (req, res) => {
     try {
-      // Get all completed tasks with their session data
-      const [completedRows] = await pool.query(`
+      // Get all completed tasks with their creation and completion dates
+      const [completedTasks] = await pool.query(`
         SELECT
           t.id,
           t.title,
@@ -285,6 +285,7 @@ async function main() {
           t.status,
           t.created_at,
           t.completed_at,
+          DATE(t.created_at) as creation_date,
           DATE(t.completed_at) as completion_date,
           COALESCE(SUM(ts.duration), 0) AS total_duration
         FROM tasks t
@@ -294,8 +295,8 @@ async function main() {
         ORDER BY t.completed_at DESC
       `);
 
-      // Get all tasks (both active and completed) grouped by creation date to calculate total per date
-      const [allRows] = await pool.query(`
+      // Get all tasks (completed and active) grouped by creation date
+      const [allTasks] = await pool.query(`
         SELECT
           t.id,
           t.title,
@@ -311,29 +312,29 @@ async function main() {
           SELECT DISTINCT DATE(completed_at)
           FROM tasks
           WHERE status = 'completed' AND completed_at IS NOT NULL
-        )  -- Only get tasks from dates that have completed tasks
+        )  -- Only get dates that have completed tasks
         GROUP BY t.id
         ORDER BY t.created_at DESC
       `);
 
-      // Group completed tasks by completion date
-      const completedTasksByDate = {};
-      completedRows.forEach(task => {
-        const date = task.completion_date;
-        if (!completedTasksByDate[date]) {
-          completedTasksByDate[date] = [];
+      // Group completed tasks by their creation date (the date when they were originally created)
+      const completedTasksByCreationDate = {};
+      completedTasks.forEach(task => {
+        const date = task.creation_date;
+        if (!completedTasksByCreationDate[date]) {
+          completedTasksByCreationDate[date] = [];
         }
-        completedTasksByDate[date].push(task);
+        completedTasksByCreationDate[date].push(task);
       });
 
-      // Group all tasks by creation date (for calculating total tasks per date)
-      const allTasksByDate = {};
-      allRows.forEach(task => {
+      // Group all tasks by creation date
+      const allTasksByCreationDate = {};
+      allTasks.forEach(task => {
         const date = task.creation_date;
-        if (!allTasksByDate[date]) {
-          allTasksByDate[date] = [];
+        if (!allTasksByCreationDate[date]) {
+          allTasksByCreationDate[date] = [];
         }
-        allTasksByDate[date].push(task);
+        allTasksByCreationDate[date].push(task);
       });
 
       // Format the response with date labels and progress
@@ -341,28 +342,30 @@ async function main() {
       const today = new Date().toISOString().split('T')[0]; // Format: YYYY-MM-DD
       const options = { day: 'numeric', month: 'short', year: 'numeric' };
 
-      // Process each date that has completed tasks
-      for (const [date, completedTasks] of Object.entries(completedTasksByDate)) {
-        // Get all tasks for this date (both completed and not completed)
-        const allTasksForDate = allTasksByDate[date] || [];
-        const totalTasks = allTasksForDate.length;
-        const completedTasksCount = completedTasks.length;
+      // Process each date that has tasks
+      for (const [creationDate, allTasksForDate] of Object.entries(allTasksByCreationDate)) {
+        // Count total tasks created on this date
+        const totalTasksOnDate = allTasksForDate.length;
+
+        // Count completed tasks that were created on this date
+        const completedTasksForDate = completedTasksByCreationDate[creationDate] || [];
+        const completedTasksCount = completedTasksForDate.length;
 
         // Format date label
         let dateLabel;
-        if (date === today) {
+        if (creationDate === today) {
           dateLabel = "Hari Ini";
         } else {
           // Convert date string to proper date object for formatting
-          const dateObj = new Date(date);
+          const dateObj = new Date(creationDate);
           dateLabel = dateObj.toLocaleDateString('id-ID', options);
         }
 
         historyData.push({
-          date: date,
+          date: creationDate,
           dateLabel: dateLabel,
-          progress: `${completedTasksCount}/${totalTasks}`,
-          tasks: completedTasks
+          progress: `${completedTasksCount}/${totalTasksOnDate}`,
+          tasks: completedTasksForDate  // Only completed tasks for this date
         });
       }
 
