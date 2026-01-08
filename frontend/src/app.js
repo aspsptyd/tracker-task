@@ -317,6 +317,21 @@ async function startTimerFor(taskId){
   saveRunningToStorage();
   startIntervalFor(runningTaskId);
   refreshRunningUI();
+
+  // Move the running task to the top immediately after starting
+  moveTaskToTop(taskId);
+}
+
+function moveTaskToTop(taskId) {
+  const taskCard = document.querySelector(`.card[data-id="${taskId}"]`);
+  if (!taskCard) return;
+
+  const parentContainer = taskCard.parentElement;
+  if (!parentContainer) return;
+
+  // Remove the card from its current position and re-add it at the beginning
+  parentContainer.removeChild(taskCard);
+  parentContainer.insertBefore(taskCard, parentContainer.firstChild);
 }
 
 async function stopTimerFor(taskId){
