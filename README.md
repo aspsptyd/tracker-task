@@ -348,6 +348,28 @@ node test/secondsToString.test.js
 
 This will run the unit tests for the `secondsToString` function and display the results in the console.
 
+When you run the test, you should see output like this:
+
+```
+✓ should convert 0 seconds to "0s"
+✓ should convert null to "0s"
+✓ should convert undefined to "0s"
+✓ should convert 30 seconds to "0h 0m 30s"
+✓ should convert 65 seconds to "0h 1m 5s"
+✓ should convert 3661 seconds to "1h 1m 1s"
+✓ should convert 7200 seconds to "2h 0m 0s"
+✓ should convert 3665 seconds to "1h 1m 5s"
+
+Unit tests completed!
+```
+
+### Interpreting Test Results
+
+- **✓** (checkmark) indicates that a test passed successfully
+- **✗** (cross) would indicate that a test failed
+- If a test fails, an error message will show what was expected vs. what was actually returned
+- All tests passing means the `secondsToString` function is working correctly for the tested scenarios
+
 ### Unit Test Example
 
 A unit test example has been created for the `secondsToString` function in the backend. The test file can be found at `backend/test/secondsToString.test.js`.
