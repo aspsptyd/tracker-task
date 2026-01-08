@@ -242,17 +242,21 @@ function refreshRunningUI(){
     const startBtn = c.querySelector('.startBtn');
     const stopBtn = c.querySelector('.stopBtn');
     const timerEl = c.querySelector(`.timer[data-timer-id="${id}"]`);
+
     if (runningTaskId && String(runningTaskId) === id){
       c.classList.add('running');
-      if (startBtn) startBtn.style.display = (status === 'completed') ? 'none' : '';
+      // Hide Start button and show Stop button when task is running
+      if (startBtn) startBtn.style.display = 'none';
       if (stopBtn) stopBtn.style.display = '';
       if (timerEl && runningStart){
         timerEl.textContent = formatElapsed(new Date() - runningStart);
       }
     } else {
       c.classList.remove('running');
+      // Show Start button and hide Stop button when task is not running
+      // But hide Start button if task is completed or another task is running
       if (startBtn) {
-        startBtn.style.display = (runningTaskId && runningTaskId !== id) || (status === 'completed') ? 'none' : '';
+        startBtn.style.display = (status === 'completed' || (runningTaskId && runningTaskId !== id)) ? 'none' : '';
       }
       if (stopBtn) stopBtn.style.display = 'none';
       const total = c.querySelector('.meta')?.textContent || '';

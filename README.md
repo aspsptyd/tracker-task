@@ -27,6 +27,7 @@ time-tracker/
 
 - **Task Management**: Create, edit, and delete tasks with titles and descriptions
 - **Time Tracking**: Start and stop timers for individual tasks
+- **Dynamic Button Visibility**: When a task is running, the "Start" button is hidden and replaced with a "Stop" button, and vice versa
 - **Session Management**: Track multiple sessions per task with start/end times
 - **Statistics Dashboard**: View daily and weekly statistics including total tasks and duration
 - **Detailed Task Views**: See all sessions for each task with duration breakdowns
@@ -197,6 +198,7 @@ cd /Users/goodevaninja_mac1/Documents/Asep Septiadi/Portofolio/time-tracker/fron
 
 ### Time Tracking
 - Start/Stop timers for individual tasks
+- Dynamic button visibility: When a task is running, the "Start" button is hidden and replaced with a "Stop" button, and vice versa
 - Live timer display with real-time updates
 - Session history with start/end times and duration
 - Local storage persistence for active timers
