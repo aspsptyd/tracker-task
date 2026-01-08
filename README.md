@@ -207,9 +207,10 @@ cd /Users/goodevaninja_mac1/Documents/Asep Septiadi/Portofolio/time-tracker/fron
 - **Date-based Organization**: Tasks are grouped by completion date
 - **Today's Label**: Current day shows as "Hari Ini" (Today in Indonesian)
 - **Date Formatting**: Previous days show in "DD MMM YYYY" format (e.g., "6 Jan 2025")
-- **Progress Indicators**: Each date group shows progress in "X/Y" format (X = completed tasks, Y = total tasks for that day)
+- **Progress Indicators**: Each date group shows progress in "X/Y" format (X = completed tasks created on that date, Y = total tasks created on that date)
 - **Task Lists**: Shows completed tasks under their respective date groups
 - **Automatic Updates**: History updates in real-time when tasks are completed or modified
+- **Accurate Counting**: Fixed logic to properly calculate completed vs total tasks per date, ensuring correct progress ratios (e.g., if 3 tasks were created on a date and all 3 were completed, it shows 3/3)
 
 ### User Experience
 - Clean, modern UI with card-based layout
