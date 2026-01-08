@@ -225,6 +225,33 @@ cd /Users/goodevaninja_mac1/Documents/Asep Septiadi/Portofolio/time-tracker/fron
 
 ## ⚙️ Environment Variables
 
+### .env File Template
+
+Create a `.env` file in the `backend` directory with the following template:
+
+```env
+# Database Configuration
+DB_HOST=localhost
+DB_USER=root
+DB_PASS=
+DB_NAME=time_tracker
+
+# Server Configuration
+PORT=3000
+```
+
+### Available Environment Variables
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `DB_HOST` | MySQL host | localhost |
+| `DB_USER` | MySQL username | root |
+| `DB_PASS` | MySQL password | (empty) |
+| `DB_NAME` | MySQL database name | time_tracker |
+| `PORT` | HTTP port the Express server listens on | 3000 |
+
+### Running with Environment Variables
+
 You can override runtime configuration with environment variables when starting the app:
 
 ```bash
@@ -235,14 +262,6 @@ DB_HOST=localhost DB_USER=root DB_PASS= DB_NAME=time_tracker npm start
 # example: run server on port 3001 with different DB settings
 PORT=3001 DB_HOST=localhost DB_USER=root DB_PASS=<your_password> npm start
 ```
-
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `PORT` | HTTP port the Express server listens on | 3000 |
-| `DB_HOST` | MySQL host | localhost |
-| `DB_USER` | MySQL username | root |
-| `DB_PASS` | MySQL password | (empty) |
-| `DB_NAME` | MySQL database name | time_tracker |
 
 ## 🧪 Development
 
