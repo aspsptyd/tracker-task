@@ -196,6 +196,7 @@ cd /Users/goodevaninja_mac1/Documents/Asep Septiadi/Portofolio/time-tracker/fron
 - View detailed information about each task
 - Tasks are organized into "Active Tasks" and "Completed Tasks" sections
 - **Text Wrapping**: Long task titles now properly wrap to multiple lines instead of being truncated
+- **Improved Placeholder**: Changed placeholder text from "Task title" to "Mau ngerjain apa hari ini?" for better user experience
 
 ### Time Tracking
 - Start/Stop timers for individual tasks
