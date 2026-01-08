@@ -337,6 +337,17 @@ This application implements a time blocking approach where:
 
 ## 🧪 Testing
 
+### Running Tests
+
+To run the existing unit tests, navigate to the backend directory and execute the test file directly with Node.js:
+
+```bash
+cd backend
+node test/secondsToString.test.js
+```
+
+This will run the unit tests for the `secondsToString` function and display the results in the console.
+
 ### Unit Test Example
 
 A unit test example has been created for the `secondsToString` function in the backend. The test file can be found at `backend/test/secondsToString.test.js`.
@@ -431,3 +442,30 @@ console.log('\nUnit tests completed!');
 This example demonstrates how to test the `secondsToString` function with various inputs to ensure it behaves correctly. The function takes seconds as input and returns a human-readable string showing hours, minutes, and seconds.
 
 The actual test file is located at `backend/test/secondsToString.test.js` and can be run with Node.js to validate the function's behavior.
+
+### Adding More Tests
+
+To add more unit tests to the project:
+
+1. Create new test files in the `backend/test/` directory with the naming pattern `*.test.js`
+2. Follow the same testing pattern shown in the example
+3. Use the simple test runner function or integrate with a testing framework like Jest if preferred
+4. Run tests individually with `node test/your-test-file.test.js`
+
+For a more comprehensive testing setup, you can install and use Jest or other testing frameworks:
+
+```bash
+cd backend
+npm install --save-dev jest
+```
+
+Then create a `package.json` with test scripts if one doesn't exist:
+
+```json
+{
+  "scripts": {
+    "test": "jest",
+    "test:unit": "jest test/unit"
+  }
+}
+```
