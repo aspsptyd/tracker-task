@@ -143,18 +143,28 @@ async function openDetail(taskId){
   detail.sessions.forEach(s => {
     const row = document.createElement('div');
     row.className = 'session-row';
+    // Initialize keterangan from session data if it exists
+    const keterangan = s.keterangan || '';
     row.innerHTML = `
       <div>
         <div><strong>${fmtDate(s.start_time)}</strong> → <strong>${fmtDate(s.end_time)}</strong></div>
         <small>${secondsToHuman(s.duration)}</small>
+        ${keterangan ? `<small class="keterangan-text" style="color:silver;">Keterangan: ${keterangan}</small>` : ''}
       </div>
       <div style="display:flex;gap:8px">
+        <button class="addKeterangan" data-task="${detail.task.id}" data-id="${s.id}">+ Keterangan</button>
         <button class="editSession" data-task="${detail.task.id}" data-id="${s.id}">Edit</button>
         <button class="delSession" data-id="${s.id}">Delete</button>
       </div>
     `;
     row.querySelector('.editSession').addEventListener('click', (e)=> openEditSession(detail.task.id, s));
     row.querySelector('.delSession').addEventListener('click', ()=> deleteSessionConfirm(detail.task.id, s.id));
+
+    // Add event listener for the keterangan button
+    row.querySelector('.addKeterangan').addEventListener('click', (e) => {
+      openKeteranganDialog(detail.task.id, s.id, row);
+    });
+
     sessionsWrap.appendChild(row);
   });
   dlg.appendChild(sessionsWrap);
@@ -164,6 +174,22 @@ async function openDetail(taskId){
   closeBtn.innerHTML = `<button id="closeDlg">Close</button>`;
   dlg.appendChild(closeBtn);
   dlg.querySelector('#closeDlg').addEventListener('click', ()=> dlg.close());
+
+  dlg.showModal();
+}
+
+// Function to open keterangan dialog without closing the main detail dialog
+function openKeteranganDialog(taskId, sessionId, sessionRow) {
+  const dlg = document.getElementById('keteranganDlg');
+  const form = document.getElementById('keteranganForm');
+
+  // Clear previous values
+  document.getElementById('keteranganInput').value = '';
+
+  // Store references for later use
+  form.dataset.taskId = taskId;
+  form.dataset.sessionId = sessionId;
+  form.dataset.sessionRow = sessionRow;
 
   dlg.showModal();
 }
@@ -507,3 +533,67 @@ document.getElementById('sessionEditForm').addEventListener('submit', async (e)=
   loadHistoryTasks(); // Reload history tasks after session is edited
 });
 document.getElementById('cancelEditSession').addEventListener('click', ()=> document.getElementById('sessionEditDlg').close());
+
+// Keterangan form event listeners
+document.getElementById('keteranganForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const form = e.target;
+  const taskId = form.dataset.taskId;
+  const sessionId = form.dataset.sessionId;
+  const keterangan = document.getElementById('keteranganInput').value.trim();
+
+  try {
+    // Get the task details to get the current session data
+    const taskDetails = await api(`/api/tasks/${taskId}`);
+    const currentSession = taskDetails.sessions.find(s => s.id == sessionId);
+
+    if (!currentSession) {
+      throw new Error('Session not found');
+    }
+
+    // Call the API to update the session keterangan while preserving time fields
+    await api(`/api/tasks/${taskId}/sessions/${sessionId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        start_time: currentSession.start_time,
+        end_time: currentSession.end_time,
+        keterangan
+      })
+    });
+
+    // Update the UI to show the keterangan
+    const detailDlg = document.getElementById('detailDlg');
+    const sessionRows = detailDlg.querySelectorAll('.session-row');
+
+    sessionRows.forEach(row => {
+      const editBtn = row.querySelector('.editSession');
+      if (editBtn && editBtn.dataset.id === sessionId) {
+        // Update the session row to show the keterangan
+        const keteranganDiv = row.querySelector('div:first-child');
+        const existingKet = row.querySelector('.keterangan-text');
+        if (existingKet) {
+          existingKet.remove();
+        }
+
+        if (keterangan) {
+          const keteranganElement = document.createElement('small');
+          keteranganElement.className = 'keterangan-text';
+          keteranganElement.style.color = 'silver';
+          keteranganElement.textContent = `Keterangan: ${keterangan}`;
+          keteranganDiv.appendChild(keteranganElement);
+        }
+      }
+    });
+
+    // Close the keterangan dialog
+    document.getElementById('keteranganDlg').close();
+  } catch (error) {
+    console.error('Error saving keterangan:', error);
+    alert('Failed to save keterangan: ' + error.message);
+  }
+});
+
+document.getElementById('cancelKeterangan').addEventListener('click', () => {
+  document.getElementById('keteranganDlg').close();
+});

@@ -48,18 +48,22 @@ textarea{resize:vertical}
 .session-row button{padding:6px 12px;border-radius:8px;border:1px solid rgba(255,255,255,0.06);background:transparent;color:inherit;cursor:pointer;margin:0;font-size:13px}
 .session-row .editSession{background:rgba(37,99,235,0.12);color:#cfe0ff}
 .session-row .delSession{background:rgba(239, 68, 68, 0.12);color:#fecaca}
+.session-row .addKeterangan{background:rgba(107, 114, 128, 0.12);color:#d1d5db}
 #closeDlg{padding:8px 16px;border-radius:8px;background:#2563eb;color:white;border:1px solid rgba(255,255,255,0.06);cursor:pointer;margin:0 auto;display:block}
 /* Hover effects for session detail buttons */
 .session-row .editSession:hover{background:rgba(37,99,235,0.2);color:#e6eef8}
 .session-row .delSession:hover{background:rgba(239, 68, 68, 0.2);color:#fee2e2}
+.session-row .addKeterangan:hover{background:rgba(107, 114, 128, 0.2);color:#e5e7eb}
 #closeDlg:hover{background:#1d4ed8}
 
 /* Light theme support for session detail buttons */
 body.light .session-row button{border:1px solid rgba(15,23,42,0.06);color:inherit}
 body.light .session-row .editSession{background:rgba(37,99,235,0.08);color:#0f172a}
 body.light .session-row .delSession{background:rgba(239, 68, 68, 0.08);color:#0f172a}
+body.light .session-row .addKeterangan{background:rgba(107, 114, 128, 0.08);color:#0f172a}
 body.light .session-row .editSession:hover{background:rgba(37,99,235,0.15);color:#0f172a}
 body.light .session-row .delSession:hover{background:rgba(239, 68, 68, 0.15);color:#0f172a}
+body.light .session-row .addKeterangan:hover{background:rgba(107, 114, 128, 0.15);color:#0f172a}
 body.light #closeDlg{background:#3b82f6;color:white}
 body.light #closeDlg:hover{background:#2563eb}
 

@@ -116,6 +116,19 @@
       </div>
     </template>
 
+    <!-- Dialog for adding keterangan -->
+    <dialog id="keteranganDlg" class="dialog">
+      <form id="keteranganForm">
+        <h3>Tambah Keterangan</h3>
+        <label for="keteranganInput">Keterangan:</label>
+        <textarea id="keteranganInput" rows="4" placeholder="Masukkan keterangan tambahan..."></textarea>
+        <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px">
+          <button type="button" id="cancelKeterangan">Batalkan</button>
+          <button type="submit">Tambahkan</button>
+        </div>
+      </form>
+    </dialog>
+
     <script src="/app.js"></script>
   </body>
 </html>

@@ -49,6 +49,7 @@ async function initDb() {
       start_time DATETIME NOT NULL,
       end_time DATETIME NOT NULL,
       duration INT NOT NULL,
+      keterangan TEXT DEFAULT NULL,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (task_id) REFERENCES tasks(id) ON DELETE CASCADE
     ) ENGINE=InnoDB;
@@ -75,6 +76,16 @@ async function initDb() {
     }
   } catch (err) {
     console.error('Error checking/adding completed_at column:', err);
+  }
+
+  // Check if keterangan column exists in task_sessions, if not add it
+  try {
+    const [columns] = await pool.query("SHOW COLUMNS FROM task_sessions LIKE 'keterangan'");
+    if (columns.length === 0) {
+      await pool.query("ALTER TABLE task_sessions ADD COLUMN keterangan TEXT DEFAULT NULL");
+    }
+  } catch (err) {
+    console.error('Error checking/adding keterangan column:', err);
   }
 
   return pool;
@@ -252,16 +263,45 @@ async function main() {
     res.json({ ok: true });
   });
 
-  // Update session
+  // Update session (handles both time updates and keterangan updates)
   app.put('/api/tasks/:taskId/sessions/:sessionId', async (req, res) => {
     const { taskId, sessionId } = req.params;
-    const { start_time, end_time } = req.body;
-    if (!start_time || !end_time) return res.status(400).json({ error: 'start_time and end_time required' });
-    const start = new Date(start_time);
-    const end = new Date(end_time);
-    if (isNaN(start.getTime()) || isNaN(end.getTime())) return res.status(400).json({ error: 'invalid date format' });
-    const durationSec = Math.max(0, Math.floor((end - start) / 1000));
-    await pool.query('UPDATE task_sessions SET start_time = ?, end_time = ?, duration = ? WHERE id = ? AND task_id = ?', [start, end, durationSec, sessionId, taskId]);
+    const { start_time, end_time, keterangan } = req.body;
+
+    // Get current session data to use for validation if only keterangan is being updated
+    const [[currentSession]] = await pool.query('SELECT * FROM task_sessions WHERE id = ? AND task_id = ?', [sessionId, taskId]);
+    if (!currentSession) return res.status(404).json({ error: 'session not found' });
+
+    // Prepare update fields and values
+    const updateFields = [];
+    const updateValues = [];
+
+    // Handle start_time and end_time updates (only if both are provided)
+    if (start_time && end_time) {
+      const start = new Date(start_time);
+      const end = new Date(end_time);
+      if (isNaN(start.getTime()) || isNaN(end.getTime())) return res.status(400).json({ error: 'invalid date format' });
+      const durationSec = Math.max(0, Math.floor((end - start) / 1000));
+
+      updateFields.push('start_time = ?', 'end_time = ?', 'duration = ?');
+      updateValues.push(start, end, durationSec);
+    } else if (start_time || end_time) {
+      // If only one of start_time or end_time is provided, return an error
+      return res.status(400).json({ error: 'both start_time and end_time required when updating time' });
+    }
+
+    // Add keterangan to update if provided
+    if (typeof keterangan !== 'undefined') {
+      updateFields.push('keterangan = ?');
+      updateValues.push(keterangan || null);
+    }
+
+    // If no fields to update, return an error
+    if (updateFields.length === 0) {
+      return res.status(400).json({ error: 'no fields to update' });
+    }
+
+    await pool.query(`UPDATE task_sessions SET ${updateFields.join(', ')} WHERE id = ? AND task_id = ?`, [...updateValues, sessionId, taskId]);
     const [[row]] = await pool.query('SELECT * FROM task_sessions WHERE id = ?', [sessionId]);
     res.json(row);
   });
