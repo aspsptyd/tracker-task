@@ -85,7 +85,7 @@ async function loadTasks(){
           <button class="stopBtn" data-id="${t.id}" style="display:none">Stop</button>
         </div>
         <div style="display:flex;gap:8px;margin-left:8px">
-          <button class="statusBtn" data-id="${t.id}" data-status="${t.status === 'completed' ? 'active' : 'completed'}">
+          <button class="statusBtn" data-id="${t.id}" data-status="${t.status === 'completed' ? 'active' : 'completed'}" ${(t.sessions_count === 0 && t.status !== 'completed') ? 'style="display:none"' : ''}>
             ${t.status === 'completed' ? 'Not Done' : 'Finish'}
           </button>
           <button data-id="${t.id}" class="view">View</button>
