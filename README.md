@@ -195,6 +195,7 @@ cd /Users/goodevaninja_mac1/Documents/Asep Septiadi/Portofolio/time-tracker/fron
 - Mark tasks as completed/incomplete with "Finish" and "Not Done" buttons
 - View detailed information about each task
 - Tasks are organized into "Active Tasks" and "Completed Tasks" sections
+- **Text Wrapping**: Long task titles now properly wrap to multiple lines instead of being truncated
 
 ### Time Tracking
 - Start/Stop timers for individual tasks

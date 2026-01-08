@@ -17,7 +17,7 @@ button{cursor:pointer;background:#2563eb;color:white;border:none}
 .tasks{display:flex;flex-direction:column;gap:10px}
 .card{display:flex;justify-content:space-between;align-items:center;padding:14px;background:linear-gradient(90deg,rgba(255,255,255,0.02),rgba(255,255,255,0.01));border-radius:10px}
 .card-left{flex:1;min-width:0}
-.card-left .title{font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.card-left .title{font-weight:700;overflow-wrap:break-word;word-wrap:break-word;word-break:break-word}
 .meta{font-size:13px;color:#9fb0d6}
 .card .actions{display:flex;gap:8px;flex:0 0 auto}
 .pill{padding:6px 8px;border-radius:999px;background:rgba(37,99,235,0.12);color:#cfe0ff;font-size:12px}
