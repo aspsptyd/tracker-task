@@ -48,7 +48,17 @@ async function loadTasks(){
   activeContainer.innerHTML = '';
   completedContainer.innerHTML = '';
 
-  tasks.forEach(t => {
+  // Sort tasks to put running task at the top
+  const running = loadRunningFromStorage();
+  const sortedTasks = [...tasks].sort((a, b) => {
+    // If a task is running, put it at the top
+    if (running && String(a.id) === String(running.taskId)) return -1;
+    if (running && String(b.id) === String(running.taskId)) return 1;
+    // Otherwise maintain original order
+    return 0;
+  });
+
+  sortedTasks.forEach(t => {
     const card = document.createElement('div');
     card.className = 'card';
     card.dataset.id = t.id;
