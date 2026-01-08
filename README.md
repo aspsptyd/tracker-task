@@ -179,6 +179,7 @@ cd /Users/goodevaninja_mac1/Documents/Asep Septiadi/Portofolio/time-tracker/fron
 - `start_time` - DATETIME NOT NULL
 - `end_time` - DATETIME NOT NULL
 - `duration` - INT NOT NULL (in seconds)
+- `keterangan` - TEXT NULL (session descriptions)
 - `created_at` - TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 
 ## 🎨 Frontend Features
@@ -187,6 +188,14 @@ cd /Users/goodevaninja_mac1/Documents/Asep Septiadi/Portofolio/time-tracker/fron
 - **Total Task Today**: Number of tasks completed today and total duration
 - **Task Running**: Count of currently active timers
 - **Total Task in Week**: Number of tasks completed this week
+
+### Session Descriptions (Keterangan)
+- **'+ Keterangan' Button**: Appears next to 'Edit' button in session detail popup
+- **Description Dialog**: Separate dialog without closing main detail popup
+- **Input Field**: Textarea for entering session descriptions
+- **Action Buttons**: 'Batalkan' (Cancel) and 'Tambahkan' (Add) buttons
+- **Visual Display**: Descriptions shown in silver text below session range
+- **Persistent Storage**: Descriptions saved to database and retrieved on reload
 
 ### Task Management
 - Create new tasks with title and description
@@ -331,6 +340,15 @@ This application implements a time blocking approach where:
 - Detailed session history is available in task detail views
 - Time tracking is precise with start/end time recording
 - Statistics provide insights into productivity patterns
+
+## 📝 Session Descriptions (Keterangan)
+
+New functionality added to enhance session tracking:
+- Each session can have additional descriptions/keterangan
+- '+ Keterangan' button allows adding descriptions to individual sessions
+- Descriptions appear in silver text below the session time range
+- Descriptions are stored in the database and persist between sessions
+- Separate dialog with 'Batalkan' (Cancel) and 'Tambahkan' (Add) buttons
 
 ## 🔐 Security Notes
 
