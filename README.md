@@ -198,6 +198,7 @@ cd /Users/goodevaninja_mac1/Documents/Asep Septiadi/Portofolio/time-tracker/fron
 - **Text Wrapping**: Long task titles now properly wrap to multiple lines instead of being truncated
 - **Improved Placeholder**: Changed placeholder text from "Task title" to "Mau ngerjain apa hari ini?" for better user experience
 - **Improved Description Placeholder**: Changed placeholder text from "Description" to "Tambahkan keterangan / catatan" for better user experience
+- **Enhanced Create Button**: Changed button text from "Create" to "Buat Task Sekarang" and added a pencil icon for better visual indication
 
 ### Time Tracking
 - Start/Stop timers for individual tasks
