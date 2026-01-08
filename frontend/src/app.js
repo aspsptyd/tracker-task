@@ -367,6 +367,13 @@ document.getElementById('taskForm').addEventListener('submit', async (e) =>{
   loadHistoryTasks(); // Reload history tasks after task is created
 });
 
+// Cancel button functionality
+document.getElementById('cancelBtn').addEventListener('click', (e) => {
+  document.getElementById('title').value = '';
+  document.getElementById('description').value = '';
+  document.getElementById('title').focus(); // Focus back to title input
+});
+
 // NOTE: manual session form removed; live timer handles creating sessions now.
 
 document.getElementById('refresh').addEventListener('click', async (e)=>{

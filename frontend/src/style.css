@@ -10,6 +10,7 @@ body{background:#0f172a;color:#e6eef8;margin:0;padding:18px}
 form{display:flex;flex-direction:column;gap:8px}
 input,select,button{padding:10px;border:1px solid rgba(255,255,255,0.06);border-radius:10px;background:transparent;color:inherit}
 button{cursor:pointer;background:#2563eb;color:white;border:none}
+#cancelBtn{background:#dc2626 !important;color:white !important;}
 .timeline{background:linear-gradient(180deg,#071530 0%, #061026 100%);padding:16px;border-radius:12px}
 .task-sections{display:flex;flex-direction:column;gap:20px}
 .task-section{display:flex;flex-direction:column;gap:10px}
