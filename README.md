@@ -339,6 +339,8 @@ This application implements a time blocking approach where:
 
 ### Unit Test Example
 
+A unit test example has been created for the `secondsToString` function in the backend. The test file can be found at `backend/test/secondsToString.test.js`.
+
 Here's an example of how to create unit tests for the `secondsToString` function in the backend:
 
 ```javascript
@@ -427,3 +429,5 @@ console.log('\nUnit tests completed!');
 ```
 
 This example demonstrates how to test the `secondsToString` function with various inputs to ensure it behaves correctly. The function takes seconds as input and returns a human-readable string showing hours, minutes, and seconds.
+
+The actual test file is located at `backend/test/secondsToString.test.js` and can be run with Node.js to validate the function's behavior.
