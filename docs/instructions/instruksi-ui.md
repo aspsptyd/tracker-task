@@ -1,4 +1,4 @@
-# Time Tracker App — Modern UI Implementation Guide
+# ⏰ Time Tracker App — Modern UI Implementation Guide
 ## Using shadcn-ui + Tailwind CSS
 
 ## ROLE

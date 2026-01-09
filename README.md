@@ -1,4 +1,4 @@
-# Time Tracker - Split Architecture
+# ⏰ Time Tracker - Split Architecture
 
 This project has been restructured to separate backend and frontend concerns following a modular architecture approach.
 
