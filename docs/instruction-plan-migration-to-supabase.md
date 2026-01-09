@@ -28,12 +28,18 @@ This document outlines the plan for migrating the current MySQL database to Supa
 - Adjust any MySQL-specific functions to PostgreSQL equivalents
 
 ### 3. Environment Configuration
-- Update \`.env\` file with Supabase connection details:
+- Update \`.env\` file with your Supabase project details:
   \`\`\`
-  SUPABASE_URL=https://rtpgsabublodclwrmgxb.supabase.co
-  SUPABASE_ANON_KEY=your-anon-key
+  NEXT_PUBLIC_SUPABASE_URL=https://rtpgsabublodclwrmgxb.supabase.co
+  NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
   SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
   \`\`\`
+- To get your keys:
+  1. Go to your Supabase dashboard at https://supabase.com/dashboard/project/rtpgsabublodclwrmgxb/settings/api
+  2. Find the "Project API Keys" section
+  3. Use the "anon" key as your `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+  4. Use the "service_role" key as your `SUPABASE_SERVICE_ROLE_KEY`
+- Note: `NEXT_PUBLIC_SUPABASE_ANON_KEY` is typically used for client-side operations, while `SUPABASE_SERVICE_ROLE_KEY` is for server-side operations with full privileges
 - Replace MySQL connection variables with Supabase equivalents
 
 ### 4. Database Migration Script
@@ -75,6 +81,106 @@ To execute this migration, I would need:
 4. **Testing Environment**:
    - Staging environment to test migration
    - Backup of current data before migration
+
+## Supabase Connection and Configuration Process
+
+### 1. Install Supabase Client Library
+```bash
+npm install @supabase/supabase-js
+```
+
+### 2. Initialize Supabase Client
+```javascript
+import { createClient } from '@supabase/supabase-js'
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+const supabase = createClient(supabaseUrl, supabaseAnonKey)
+```
+
+### 3. Configure Database Tables
+For your Time Tracker application, you'll need to create the following tables in Supabase:
+
+#### Tasks Table
+```sql
+CREATE TABLE tasks (
+  id BIGSERIAL PRIMARY KEY,
+  title VARCHAR(255) NOT NULL,
+  description TEXT,
+  status TEXT DEFAULT 'active' CHECK (status IN ('active', 'completed')),
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  completed_at TIMESTAMP WITH TIME ZONE
+);
+```
+
+#### Task Sessions Table
+```sql
+CREATE TABLE task_sessions (
+  id BIGSERIAL PRIMARY KEY,
+  task_id BIGINT REFERENCES tasks(id) ON DELETE CASCADE,
+  start_time TIMESTAMP WITH TIME ZONE NOT NULL,
+  end_time TIMESTAMP WITH TIME ZONE NOT NULL,
+  duration INTEGER NOT NULL,
+  keterangan TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+```
+
+### 4. Environment Variables Setup
+Create or update your `.env` file with:
+```
+NEXT_PUBLIC_SUPABASE_URL=https://rtpgsabublodclwrmgxb.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key-here
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key-here
+```
+
+### 5. Database Connection Code
+Replace your current MySQL connection code with Supabase client initialization:
+
+```javascript
+import { createClient } from '@supabase/supabase-js';
+
+// Initialize Supabase client
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_ROLE_KEY // Use service role key for server-side operations
+);
+```
+
+### 6. Query Migration Examples
+Convert your MySQL queries to Supabase queries:
+
+**MySQL:**
+```javascript
+const [rows] = await pool.query('SELECT * FROM tasks WHERE id = ?', [id]);
+```
+
+**Supabase:**
+```javascript
+const { data: tasks, error } = await supabase
+  .from('tasks')
+  .select('*')
+  .eq('id', id);
+
+if (error) throw error;
+```
+
+### 7. Authentication (Optional)
+If you want to use Supabase Auth for user management:
+```javascript
+// Sign up
+const { data, error } = await supabase.auth.signUp({
+  email: 'email@example.com',
+  password: 'password',
+});
+
+// Sign in
+const { data, error } = await supabase.auth.signInWithPassword({
+  email: 'email@example.com',
+  password: 'password',
+});
+```
 
 ## Benefits of Migration to Supabase
 
