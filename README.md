@@ -1,4 +1,4 @@
-# Time Tracker - Split Architecture
+# ⏰ Time Tracker - Split Architecture
 
 This project has been restructured to separate backend and frontend concerns following a modular architecture approach.
 
@@ -33,7 +33,7 @@ time-tracker/
 - **Detailed Task Views**: See all sessions for each task with duration breakdowns
 - **Live Timers**: Real-time tracking with persistence in localStorage
 - **Dark/Light Theme**: Toggle between themes with persistent preference
-- **History Task Section**: View task completion history organized by date with progress indicators
+- **History Task Section**: View task completion history organized by creation date with progress indicators, showing tasks under the date they were created regardless of when they were completed
 - **Responsive UI**: Clean, modern interface optimized for productivity
 
 ## 🛠️ Tech Stack
@@ -179,6 +179,7 @@ cd /Users/goodevaninja_mac1/Documents/Asep Septiadi/Portofolio/time-tracker/fron
 - `start_time` - DATETIME NOT NULL
 - `end_time` - DATETIME NOT NULL
 - `duration` - INT NOT NULL (in seconds)
+- `keterangan` - TEXT NULL (session descriptions)
 - `created_at` - TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 
 ## 🎨 Frontend Features
@@ -188,6 +189,14 @@ cd /Users/goodevaninja_mac1/Documents/Asep Septiadi/Portofolio/time-tracker/fron
 - **Task Running**: Count of currently active timers
 - **Total Task in Week**: Number of tasks completed this week
 
+### Session Descriptions (Keterangan)
+- **'+ Keterangan' Button**: Appears next to 'Edit' button in session detail popup
+- **Description Dialog**: Separate dialog without closing main detail popup
+- **Input Field**: Textarea for entering session descriptions
+- **Action Buttons**: 'Batalkan' (Cancel) and 'Tambahkan' (Add) buttons
+- **Visual Display**: Descriptions shown in silver text below session range
+- **Persistent Storage**: Descriptions saved to database and retrieved on reload
+
 ### Task Management
 - Create new tasks with title and description
 - Edit existing tasks
@@ -195,6 +204,10 @@ cd /Users/goodevaninja_mac1/Documents/Asep Septiadi/Portofolio/time-tracker/fron
 - Mark tasks as completed/incomplete with "Finish" and "Not Done" buttons
 - View detailed information about each task
 - Tasks are organized into "Active Tasks" and "Completed Tasks" sections
+- **Text Wrapping**: Long task titles now properly wrap to multiple lines instead of being truncated
+- **Improved Placeholder**: Changed placeholder text from "Task title" to "Mau ngerjain apa hari ini?" for better user experience
+- **Improved Description Placeholder**: Changed placeholder text from "Description" to "Tambahkan keterangan / catatan" for better user experience
+- **Enhanced Create Button**: Changed button text from "Create" to "Buat Task Sekarang" and added a pencil icon for better visual indication
 
 ### Time Tracking
 - Start/Stop timers for individual tasks
@@ -221,6 +234,33 @@ cd /Users/goodevaninja_mac1/Documents/Asep Septiadi/Portofolio/time-tracker/fron
 
 ## ⚙️ Environment Variables
 
+### .env File Template
+
+Create a `.env` file in the `backend` directory with the following template:
+
+```env
+# Database Configuration
+DB_HOST=localhost
+DB_USER=root
+DB_PASS=
+DB_NAME=time_tracker
+
+# Server Configuration
+PORT=3000
+```
+
+### Available Environment Variables
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `DB_HOST` | MySQL host | localhost |
+| `DB_USER` | MySQL username | root |
+| `DB_PASS` | MySQL password | (empty) |
+| `DB_NAME` | MySQL database name | time_tracker |
+| `PORT` | HTTP port the Express server listens on | 3000 |
+
+### Running with Environment Variables
+
 You can override runtime configuration with environment variables when starting the app:
 
 ```bash
@@ -231,14 +271,6 @@ DB_HOST=localhost DB_USER=root DB_PASS= DB_NAME=time_tracker npm start
 # example: run server on port 3001 with different DB settings
 PORT=3001 DB_HOST=localhost DB_USER=root DB_PASS=<your_password> npm start
 ```
-
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `PORT` | HTTP port the Express server listens on | 3000 |
-| `DB_HOST` | MySQL host | localhost |
-| `DB_USER` | MySQL username | root |
-| `DB_PASS` | MySQL password | (empty) |
-| `DB_NAME` | MySQL database name | time_tracker |
 
 ## 🧪 Development
 
@@ -294,11 +326,31 @@ $env:PORT='3001'; cd backend; npm start
         "created_at": "2025-01-06T09:00:00.000Z",
         "completed_at": "2025-01-06T11:30:00.000Z",
         "total_duration": 5400
+      },
+      {
+        "id": 3,
+        "title": "Task Created Yesterday, Completed Today",
+        "description": "This task was created on Jan 6 but completed on Jan 7",
+        "status": "completed",
+        "created_at": "2025-01-06T15:00:00.000Z",
+        "completed_at": "2025-01-07T09:15:00.000Z",
+        "total_duration": 3600
       }
     ]
   }
 ]
 ```
+
+### History Task Features
+
+- **Date-based Organization**: Tasks are grouped by creation date, regardless of when they were completed
+- **Cross-date Completion**: Tasks created on one date but completed on another date appear under their creation date
+- **Today's Label**: Current day shows as "Hari Ini" (Today in Indonesian)
+- **Date Formatting**: Previous days show in "DD MMM YYYY" format (e.g., "6 Jan 2025")
+- **Progress Indicators**: Each date group shows progress in "X/Y" format (X = completed tasks created on that date, Y = total tasks created on that date)
+- **Task Lists**: Shows completed tasks under their respective date groups
+- **Automatic Updates**: History updates in real-time when tasks are completed or modified
+- **Accurate Counting**: Fixed logic to properly calculate completed vs total tasks per date, ensuring correct progress ratios
 
 ## 📈 Time Blocking & Tracking Philosophy
 
@@ -308,6 +360,15 @@ This application implements a time blocking approach where:
 - Detailed session history is available in task detail views
 - Time tracking is precise with start/end time recording
 - Statistics provide insights into productivity patterns
+
+## 📝 Session Descriptions (Keterangan)
+
+New functionality added to enhance session tracking:
+- Each session can have additional descriptions/keterangan
+- '+ Keterangan' button allows adding descriptions to individual sessions
+- Descriptions appear in silver text below the session time range
+- Descriptions are stored in the database and persist between sessions
+- Separate dialog with 'Batalkan' (Cancel) and 'Tambahkan' (Add) buttons
 
 ## 🔐 Security Notes
 
@@ -330,3 +391,160 @@ This application implements a time blocking approach where:
 - Idle detection to improve accuracy
 - Task tagging and categorization
 - More advanced filtering and search capabilities
+
+## 🧪 Testing
+
+### Running Tests
+
+To run the existing unit tests, navigate to the backend directory and execute the test file directly with Node.js:
+
+```bash
+cd backend
+node test/secondsToString.test.js
+```
+
+This will run the unit tests for the `secondsToString` function and display the results in the console.
+
+When you run the test, you should see output like this:
+
+```
+✓ should convert 0 seconds to "0s"
+✓ should convert null to "0s"
+✓ should convert undefined to "0s"
+✓ should convert 30 seconds to "0h 0m 30s"
+✓ should convert 65 seconds to "0h 1m 5s"
+✓ should convert 3661 seconds to "1h 1m 1s"
+✓ should convert 7200 seconds to "2h 0m 0s"
+✓ should convert 3665 seconds to "1h 1m 5s"
+
+Unit tests completed!
+```
+
+### Interpreting Test Results
+
+- **✓** (checkmark) indicates that a test passed successfully
+- **✗** (cross) would indicate that a test failed
+- If a test fails, an error message will show what was expected vs. what was actually returned
+- All tests passing means the `secondsToString` function is working correctly for the tested scenarios
+
+### Unit Test Example
+
+A unit test example has been created for the `secondsToString` function in the backend. The test file can be found at `backend/test/secondsToString.test.js`.
+
+Here's an example of how to create unit tests for the `secondsToString` function in the backend:
+
+```javascript
+/**
+ * Unit tests for the secondsToString function
+ * This function converts seconds to a human-readable format (e.g., "1h 2m 3s")
+ */
+
+// Mock the secondsToString function implementation for testing
+function secondsToString(sec) {
+  if (!sec) return '0s';
+  const h = Math.floor(sec / 3600);
+  const m = Math.floor((sec % 3600) / 60);
+  const s = sec % 60;
+  return `${h}h ${m}m ${s}s`;
+}
+
+// Simple test runner
+function runTest(testName, testFunction) {
+  try {
+    testFunction();
+    console.log(`✓ ${testName}`);
+  } catch (error) {
+    console.log(`✗ ${testName}: ${error.message}`);
+  }
+}
+
+// Test cases
+runTest('should convert 0 seconds to "0s"', () => {
+  const result = secondsToString(0);
+  if (result !== '0s') {
+    throw new Error(`Expected "0s", got "${result}"`);
+  }
+});
+
+runTest('should convert null to "0s"', () => {
+  const result = secondsToString(null);
+  if (result !== '0s') {
+    throw new Error(`Expected "0s", got "${result}"`);
+  }
+});
+
+runTest('should convert undefined to "0s"', () => {
+  const result = secondsToString(undefined);
+  if (result !== '0s') {
+    throw new Error(`Expected "0s", got "${result}"`);
+  }
+});
+
+runTest('should convert 30 seconds to "0h 0m 30s"', () => {
+  const result = secondsToString(30);
+  if (result !== '0h 0m 30s') {
+    throw new Error(`Expected "0h 0m 30s", got "${result}"`);
+  }
+});
+
+runTest('should convert 65 seconds to "0h 1m 5s"', () => {
+  const result = secondsToString(65);
+  if (result !== '0h 1m 5s') {
+    throw new Error(`Expected "0h 1m 5s", got "${result}"`);
+  }
+});
+
+runTest('should convert 3661 seconds to "1h 1m 1s"', () => {
+  const result = secondsToString(3661);
+  if (result !== '1h 1m 1s') {
+    throw new Error(`Expected "1h 1m 1s", got "${result}"`);
+  }
+});
+
+runTest('should convert 7200 seconds to "2h 0m 0s"', () => {
+  const result = secondsToString(7200);
+  if (result !== '2h 0m 0s') {
+    throw new Error(`Expected "2h 0m 0s", got "${result}"`);
+  }
+});
+
+runTest('should convert 3665 seconds to "1h 1m 5s"', () => {
+  const result = secondsToString(3665);
+  if (result !== '1h 1m 5s') {
+    throw new Error(`Expected "1h 1m 5s", got "${result}"`);
+  }
+});
+
+console.log('\nUnit tests completed!');
+```
+
+This example demonstrates how to test the `secondsToString` function with various inputs to ensure it behaves correctly. The function takes seconds as input and returns a human-readable string showing hours, minutes, and seconds.
+
+The actual test file is located at `backend/test/secondsToString.test.js` and can be run with Node.js to validate the function's behavior.
+
+### Adding More Tests
+
+To add more unit tests to the project:
+
+1. Create new test files in the `backend/test/` directory with the naming pattern `*.test.js`
+2. Follow the same testing pattern shown in the example
+3. Use the simple test runner function or integrate with a testing framework like Jest if preferred
+4. Run tests individually with `node test/your-test-file.test.js`
+
+For a more comprehensive testing setup, you can install and use Jest or other testing frameworks:
+
+```bash
+cd backend
+npm install --save-dev jest
+```
+
+Then create a `package.json` with test scripts if one doesn't exist:
+
+```json
+{
+  "scripts": {
+    "test": "jest",
+    "test:unit": "jest test/unit"
+  }
+}
+```

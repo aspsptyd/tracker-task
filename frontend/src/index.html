@@ -3,13 +3,16 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <title>Time Tracker</title>
+    <title>⏰ Time Tracker</title>
     <link rel="stylesheet" href="/style.css">
   </head>
   <body>
     <div class="container">
       <header class="topbar">
-        <h1>Time Tracker</h1>
+        <div>
+          <h1>⏰ Time Tracker</h1>
+          <p class="subtitle">Track your time adjustment task and still evaluate to the best</p>
+        </div>
         <div class="actions">
           <button id="refresh">Refresh</button>
           <button id="themeToggle" aria-label="Toggle theme">Toggle Theme</button>
@@ -20,9 +23,10 @@
         <aside class="panel">
           <h2>Create Task</h2>
           <form id="taskForm">
-            <input id="title" placeholder="Task title" required />
-            <input id="description" placeholder="Description" />
-            <button type="submit">Create</button>
+            <input id="title" placeholder="Mau ngerjain apa hari ini?" required />
+            <input id="description" placeholder="Tambahkan keterangan / catatan" />
+            <button type="submit"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 6px;"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/><path d="M2 2l7.586 7.586"/></svg>Buat Task Sekarang</button>
+            <button type="button" id="cancelBtn">Batalkan</button>
           </form>
         </aside>
 
@@ -114,6 +118,19 @@
         </div>
       </div>
     </template>
+
+    <!-- Dialog for adding keterangan -->
+    <dialog id="keteranganDlg" class="dialog">
+      <form id="keteranganForm">
+        <h3>Tambah Keterangan</h3>
+        <label for="keteranganInput">Keterangan:</label>
+        <textarea id="keteranganInput" rows="4" placeholder="Masukkan keterangan tambahan..."></textarea>
+        <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px">
+          <button type="button" id="cancelKeterangan">Batalkan</button>
+          <button type="submit">Tambahkan</button>
+        </div>
+      </form>
+    </dialog>
 
     <script src="/app.js"></script>
   </body>

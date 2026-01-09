@@ -9,5 +9,9 @@ ALTER TABLE tasks ADD COLUMN status ENUM('active', 'completed') DEFAULT 'active'
 -- Update existing tasks to have 'active' status by default
 UPDATE tasks SET status = 'active' WHERE status IS NULL;
 
--- Verify the column was added
+-- Add keterangan column to task_sessions table
+ALTER TABLE task_sessions ADD COLUMN keterangan TEXT DEFAULT NULL;
+
+-- Verify the columns were added
 DESCRIBE tasks;
+DESCRIBE task_sessions;

@@ -49,6 +49,7 @@ async function initDb() {
       start_time DATETIME NOT NULL,
       end_time DATETIME NOT NULL,
       duration INT NOT NULL,
+      keterangan TEXT DEFAULT NULL,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (task_id) REFERENCES tasks(id) ON DELETE CASCADE
     ) ENGINE=InnoDB;
@@ -75,6 +76,16 @@ async function initDb() {
     }
   } catch (err) {
     console.error('Error checking/adding completed_at column:', err);
+  }
+
+  // Check if keterangan column exists in task_sessions, if not add it
+  try {
+    const [columns] = await pool.query("SHOW COLUMNS FROM task_sessions LIKE 'keterangan'");
+    if (columns.length === 0) {
+      await pool.query("ALTER TABLE task_sessions ADD COLUMN keterangan TEXT DEFAULT NULL");
+    }
+  } catch (err) {
+    console.error('Error checking/adding keterangan column:', err);
   }
 
   return pool;
@@ -252,16 +263,45 @@ async function main() {
     res.json({ ok: true });
   });
 
-  // Update session
+  // Update session (handles both time updates and keterangan updates)
   app.put('/api/tasks/:taskId/sessions/:sessionId', async (req, res) => {
     const { taskId, sessionId } = req.params;
-    const { start_time, end_time } = req.body;
-    if (!start_time || !end_time) return res.status(400).json({ error: 'start_time and end_time required' });
-    const start = new Date(start_time);
-    const end = new Date(end_time);
-    if (isNaN(start.getTime()) || isNaN(end.getTime())) return res.status(400).json({ error: 'invalid date format' });
-    const durationSec = Math.max(0, Math.floor((end - start) / 1000));
-    await pool.query('UPDATE task_sessions SET start_time = ?, end_time = ?, duration = ? WHERE id = ? AND task_id = ?', [start, end, durationSec, sessionId, taskId]);
+    const { start_time, end_time, keterangan } = req.body;
+
+    // Get current session data to use for validation if only keterangan is being updated
+    const [[currentSession]] = await pool.query('SELECT * FROM task_sessions WHERE id = ? AND task_id = ?', [sessionId, taskId]);
+    if (!currentSession) return res.status(404).json({ error: 'session not found' });
+
+    // Prepare update fields and values
+    const updateFields = [];
+    const updateValues = [];
+
+    // Handle start_time and end_time updates (only if both are provided)
+    if (start_time && end_time) {
+      const start = new Date(start_time);
+      const end = new Date(end_time);
+      if (isNaN(start.getTime()) || isNaN(end.getTime())) return res.status(400).json({ error: 'invalid date format' });
+      const durationSec = Math.max(0, Math.floor((end - start) / 1000));
+
+      updateFields.push('start_time = ?', 'end_time = ?', 'duration = ?');
+      updateValues.push(start, end, durationSec);
+    } else if (start_time || end_time) {
+      // If only one of start_time or end_time is provided, return an error
+      return res.status(400).json({ error: 'both start_time and end_time required when updating time' });
+    }
+
+    // Add keterangan to update if provided
+    if (typeof keterangan !== 'undefined') {
+      updateFields.push('keterangan = ?');
+      updateValues.push(keterangan || null);
+    }
+
+    // If no fields to update, return an error
+    if (updateFields.length === 0) {
+      return res.status(400).json({ error: 'no fields to update' });
+    }
+
+    await pool.query(`UPDATE task_sessions SET ${updateFields.join(', ')} WHERE id = ? AND task_id = ?`, [...updateValues, sessionId, taskId]);
     const [[row]] = await pool.query('SELECT * FROM task_sessions WHERE id = ?', [sessionId]);
     res.json(row);
   });
@@ -276,7 +316,7 @@ async function main() {
   // Get task history by date
   app.get('/api/history', async (req, res) => {
     try {
-      // Get all completed tasks with their creation and completion dates
+      // Get all completed tasks grouped by their creation date
       const [completedTasks] = await pool.query(`
         SELECT
           t.id,
@@ -285,17 +325,16 @@ async function main() {
           t.status,
           t.created_at,
           t.completed_at,
-          DATE(t.created_at) as creation_date,
-          DATE(t.completed_at) as completion_date,
+          DATE_FORMAT(t.created_at, '%Y-%m-%d') as creation_date,
           COALESCE(SUM(ts.duration), 0) AS total_duration
         FROM tasks t
         LEFT JOIN task_sessions ts ON ts.task_id = t.id
         WHERE t.status = 'completed' AND t.completed_at IS NOT NULL
         GROUP BY t.id
-        ORDER BY t.completed_at DESC
+        ORDER BY t.created_at DESC, t.completed_at DESC
       `);
 
-      // Get all tasks (completed and active) grouped by creation date
+      // Get all tasks (completed and active) grouped by their creation date
       const [allTasks] = await pool.query(`
         SELECT
           t.id,
@@ -304,15 +343,10 @@ async function main() {
           t.status,
           t.created_at,
           t.completed_at,
-          DATE(t.created_at) as creation_date,
+          DATE_FORMAT(t.created_at, '%Y-%m-%d') as creation_date,
           COALESCE(SUM(ts.duration), 0) AS total_duration
         FROM tasks t
         LEFT JOIN task_sessions ts ON ts.task_id = t.id
-        WHERE DATE(t.created_at) IN (
-          SELECT DISTINCT DATE(completed_at)
-          FROM tasks
-          WHERE status = 'completed' AND completed_at IS NOT NULL
-        )  -- Only get dates that have completed tasks
         GROUP BY t.id
         ORDER BY t.created_at DESC
       `);
@@ -337,17 +371,25 @@ async function main() {
         allTasksByCreationDate[date].push(task);
       });
 
+      // Get unique dates that have completed tasks
+      const datesWithCompletedTasks = new Set();
+      completedTasks.forEach(task => {
+        datesWithCompletedTasks.add(task.creation_date);
+      });
+
       // Format the response with date labels and progress
       const historyData = [];
       const today = new Date().toISOString().split('T')[0]; // Format: YYYY-MM-DD
       const options = { day: 'numeric', month: 'short', year: 'numeric' };
 
-      // Process each date that has tasks
-      for (const [creationDate, allTasksForDate] of Object.entries(allTasksByCreationDate)) {
+      // Process only dates that have completed tasks
+      for (const creationDate of datesWithCompletedTasks) {
+        // Get all tasks created on this date
+        const allTasksForDate = allTasksByCreationDate[creationDate] || [];
         // Count total tasks created on this date
         const totalTasksOnDate = allTasksForDate.length;
 
-        // Count completed tasks that were created on this date
+        // Get completed tasks created on this date
         const completedTasksForDate = completedTasksByCreationDate[creationDate] || [];
         const completedTasksCount = completedTasksForDate.length;
 
@@ -357,7 +399,7 @@ async function main() {
           dateLabel = "Hari Ini";
         } else {
           // Convert date string to proper date object for formatting
-          const dateObj = new Date(creationDate);
+          const dateObj = new Date(creationDate + 'T00:00:00'); // Add time to ensure proper parsing
           dateLabel = dateObj.toLocaleDateString('id-ID', options);
         }
 
