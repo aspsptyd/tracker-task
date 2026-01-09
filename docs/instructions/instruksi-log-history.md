@@ -5,7 +5,7 @@ Membuat section `History Task` yang menampilkan riwayat pengerjaan task per hari
 - Jika hari ini ada task → tampilkan label `"Hari Ini"`
 - Untuk hari sebelumnya → tampilkan tanggal dalam format `"DD MMM YYYY"`
 - Di samping label tanggal, tampilkan progress dalam format `"X/Y"` (X = jumlah task selesai, Y = total task pada hari tersebut)
-- List history harus mencerminkan laporan pengerjaan task berdasarkan tanggal pembuatan/completion
+- List history harus mencerminkan laporan pengerjaan task berdasarkan tanggal pembuatan (creation date), bukan tanggal penyelesaian (completion date). Artinya task yang dibuat tanggal 8 Jan tapi selesai tanggal 9 Jan tetap muncul di tanggal 8 Jan.
 
 ---
 

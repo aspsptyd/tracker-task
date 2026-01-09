@@ -33,7 +33,7 @@ time-tracker/
 - **Detailed Task Views**: See all sessions for each task with duration breakdowns
 - **Live Timers**: Real-time tracking with persistence in localStorage
 - **Dark/Light Theme**: Toggle between themes with persistent preference
-- **History Task Section**: View task completion history organized by date with progress indicators
+- **History Task Section**: View task completion history organized by creation date with progress indicators, showing tasks under the date they were created regardless of when they were completed
 - **Responsive UI**: Clean, modern interface optimized for productivity
 
 ## 🛠️ Tech Stack
@@ -326,11 +326,31 @@ $env:PORT='3001'; cd backend; npm start
         "created_at": "2025-01-06T09:00:00.000Z",
         "completed_at": "2025-01-06T11:30:00.000Z",
         "total_duration": 5400
+      },
+      {
+        "id": 3,
+        "title": "Task Created Yesterday, Completed Today",
+        "description": "This task was created on Jan 6 but completed on Jan 7",
+        "status": "completed",
+        "created_at": "2025-01-06T15:00:00.000Z",
+        "completed_at": "2025-01-07T09:15:00.000Z",
+        "total_duration": 3600
       }
     ]
   }
 ]
 ```
+
+### History Task Features
+
+- **Date-based Organization**: Tasks are grouped by creation date, regardless of when they were completed
+- **Cross-date Completion**: Tasks created on one date but completed on another date appear under their creation date
+- **Today's Label**: Current day shows as "Hari Ini" (Today in Indonesian)
+- **Date Formatting**: Previous days show in "DD MMM YYYY" format (e.g., "6 Jan 2025")
+- **Progress Indicators**: Each date group shows progress in "X/Y" format (X = completed tasks created on that date, Y = total tasks created on that date)
+- **Task Lists**: Shows completed tasks under their respective date groups
+- **Automatic Updates**: History updates in real-time when tasks are completed or modified
+- **Accurate Counting**: Fixed logic to properly calculate completed vs total tasks per date, ensuring correct progress ratios
 
 ## 📈 Time Blocking & Tracking Philosophy
 
