@@ -84,12 +84,22 @@ To execute this migration, I would need:
 
 ## Supabase Connection and Configuration Process
 
-### 1. Install Supabase Client Library
+### 1. Get Your Supabase API Keys
+Since you already have a Supabase project at https://rtpgsabublodclwrmgxb.supabase.co, follow these steps to get your API keys:
+
+1. Go to your Supabase Dashboard: https://supabase.com/dashboard/project/rtpgsabublodclwrmgxb
+2. Navigate to **Settings** → **API** in the left sidebar
+3. Under "Project API Keys", you'll find:
+   - **anon (Public)**: Use as `NEXT_PUBLIC_SUPABASE_ANON_KEY` for client-side operations
+   - **service_role (Secret)**: Use as `SUPABASE_SERVICE_ROLE_KEY` for server-side operations
+4. Copy both keys for the next steps
+
+### 2. Install Supabase Client Library
 ```bash
 npm install @supabase/supabase-js
 ```
 
-### 2. Initialize Supabase Client
+### 3. Initialize Supabase Client
 ```javascript
 import { createClient } from '@supabase/supabase-js'
 
@@ -99,10 +109,15 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 const supabase = createClient(supabaseUrl, supabaseAnonKey)
 ```
 
-### 3. Configure Database Tables
+### 4. Configure Database Tables
 For your Time Tracker application, you'll need to create the following tables in Supabase:
 
-#### Tasks Table
+#### Create Tables via SQL Editor
+1. Go to your Supabase Dashboard: https://supabase.com/dashboard/project/rtpgsabublodclwrmgxb
+2. Navigate to **Database** → **SQL Editor**
+3. Run the following SQL commands:
+
+##### Tasks Table
 ```sql
 CREATE TABLE tasks (
   id BIGSERIAL PRIMARY KEY,
@@ -114,7 +129,7 @@ CREATE TABLE tasks (
 );
 ```
 
-#### Task Sessions Table
+##### Task Sessions Table
 ```sql
 CREATE TABLE task_sessions (
   id BIGSERIAL PRIMARY KEY,
@@ -127,15 +142,15 @@ CREATE TABLE task_sessions (
 );
 ```
 
-### 4. Environment Variables Setup
-Create or update your `.env` file with:
+### 5. Environment Variables Setup
+Create or update your `.env` file with your specific project details:
 ```
 NEXT_PUBLIC_SUPABASE_URL=https://rtpgsabublodclwrmgxb.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key-here
-SUPABASE_SERVICE_ROLE_KEY=your-service-role-key-here
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-copied-anon-key-from-dashboard
+SUPABASE_SERVICE_ROLE_KEY=your-copied-service-role-key-from-dashboard
 ```
 
-### 5. Database Connection Code
+### 6. Database Connection Code
 Replace your current MySQL connection code with Supabase client initialization:
 
 ```javascript
@@ -148,7 +163,7 @@ const supabase = createClient(
 );
 ```
 
-### 6. Query Migration Examples
+### 7. Query Migration Examples
 Convert your MySQL queries to Supabase queries:
 
 **MySQL:**
@@ -166,7 +181,25 @@ const { data: tasks, error } = await supabase
 if (error) throw error;
 ```
 
-### 7. Authentication (Optional)
+### 8. Testing Your Connection
+After setting up the environment variables and installing the library, test your connection:
+
+```javascript
+// Test connection by inserting a sample task
+const { data, error } = await supabase
+  .from('tasks')
+  .insert([
+    { title: 'Test Task', description: 'This is a test task' }
+  ]);
+
+if (error) {
+  console.error('Error inserting test task:', error);
+} else {
+  console.log('Test task inserted successfully:', data);
+}
+```
+
+### 9. Authentication (Optional)
 If you want to use Supabase Auth for user management:
 ```javascript
 // Sign up
@@ -180,6 +213,17 @@ const { data, error } = await supabase.auth.signInWithPassword({
   email: 'email@example.com',
   password: 'password',
 });
+```
+
+### 10. RLS (Row Level Security) - Optional
+If you want to enable Row Level Security for multi-user support:
+1. Go to your Supabase Dashboard → Database → Tables
+2. Enable RLS on your tables
+3. Create policies to control access
+```sql
+-- Example policy to allow users to only see their own data
+CREATE POLICY "Allow logged-in user access" ON tasks
+FOR ALL USING (auth.uid() = id);
 ```
 
 ## Benefits of Migration to Supabase
