@@ -4,7 +4,8 @@
   "description": "Minimal Time Tracking & Time Blocking fullstack app",
   "main": "index.js",
   "scripts": {
-    "start": "node index.js"
+    "start": "node index.js",
+    "vercel-build": "npm install"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.90.1",
