@@ -245,7 +245,7 @@ You can create simple HTML forms for register and login:
       <div class="form-group">
         <label for="nama_lengkap">Full Name:</label>
         <input type="text" id="nama_lengkap" placeholder="Enter your full name" required>
-      </div>
+      </div>  
 
       <div class="form-group">
         <label for="alamat">Address:</label>
@@ -601,22 +601,24 @@ document.getElementById('logoutBtn').addEventListener('click', logout);
 ## 🔧 Troubleshooting Common Issues
 
 ### Registration Error: "Unexpected token '<'"
-This error typically occurs when the server returns an HTML error page instead of the expected JSON response. Common causes and solutions:
+This error typically occurs when the server returns an HTML page instead of the expected JSON response. Common causes and solutions:
 
-1. **Server Not Running**: Make sure the backend server is running:
+1. **Middleware Order Issue**: This error has been fixed in the latest version. The authentication routes are now properly ordered before static file middleware to prevent conflicts.
+
+2. **Server Not Running**: Make sure the backend server is running:
    ```bash
    cd backend
    npm start
    ```
 
-2. **Supabase Configuration**: Ensure your `.env` file has the correct Supabase configuration:
+3. **Supabase Configuration**: Ensure your `.env` file has the correct Supabase configuration:
    ```env
    NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
    NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
    SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
    ```
 
-3. **Database Tables**: Make sure the `profiles` table exists in your Supabase database. Run the migration SQL:
+4. **Database Tables**: Make sure the `profiles` table exists in your Supabase database. Run the migration SQL:
    ```sql
    -- Create profiles table for user information
    CREATE TABLE IF NOT EXISTS profiles (
@@ -634,9 +636,16 @@ This error typically occurs when the server returns an HTML error page instead o
    ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
    ```
 
-4. **Check Server Logs**: Look at the server console for specific error messages when registration fails.
+5. **Check Server Logs**: Look at the server console for specific error messages when registration fails.
 
-5. **CORS Configuration**: Ensure your Supabase project has the correct CORS settings for your domain.
+6. **CORS Configuration**: Ensure your Supabase project has the correct CORS settings for your domain.
+
+### If Registration Still Fails
+If you're still experiencing registration issues:
+- Verify that the backend server is restarted after making changes
+- Check that all required environment variables are set
+- Ensure the Supabase project is properly configured with Auth enabled
+- Confirm that the database tables exist and have the correct structure
 
 ### Login Error: "Invalid credentials"
 - Verify that the user account exists in the Supabase Auth system
