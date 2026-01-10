@@ -9,7 +9,22 @@ const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 // Initialize Supabase client with service role key for full access
-const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+let supabase;
+try {
+  if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
+    console.error('❌ Missing Supabase configuration!');
+    console.error('Please check your .env file for:');
+    console.error('- NEXT_PUBLIC_SUPABASE_URL');
+    console.error('- SUPABASE_SERVICE_ROLE_KEY');
+    console.error('');
+  } else {
+    console.log('✅ Supabase configuration loaded');
+    supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+  }
+} catch (error) {
+  console.error('❌ Error initializing Supabase client:', error.message);
+  supabase = null;
+}
 
 function secondsToString(sec) {
   if (!sec) return '0s';
@@ -42,13 +57,21 @@ app.get('/app.js', (req, res) => {
   res.sendFile(path.join(__dirname, 'app.js'));
 });
 
+
 // Define all API routes
 app.get('/api/ping', async (req, res) => {
+  if (!supabase) {
+    return res.status(500).json({ ok: false, error: 'Database connection unavailable' });
+  }
   res.json({ ok: true, db: 'supabase' });
 });
 
 // Dashboard Stats
 app.get('/api/stats', async (req, res) => {
+  if (!supabase) {
+    return res.status(500).json({ error: 'Database connection unavailable' });
+  }
+
   try {
     // 1. Total Task Today
     const todayStart = new Date();
@@ -99,6 +122,10 @@ app.get('/api/stats', async (req, res) => {
 
 // Create task
 app.post('/api/tasks', async (req, res) => {
+  if (!supabase) {
+    return res.status(500).json({ error: 'Database connection unavailable' });
+  }
+
   const { title, description } = req.body;
   if (!title) return res.status(400).json({ error: 'title required' });
 
@@ -118,6 +145,10 @@ app.post('/api/tasks', async (req, res) => {
 
 // Create session for task
 app.post('/api/tasks/:id/sessions', async (req, res) => {
+  if (!supabase) {
+    return res.status(500).json({ error: 'Database connection unavailable' });
+  }
+
   const taskId = req.params.id;
   const { start_time, end_time } = req.body;
   if (!start_time || !end_time) return res.status(400).json({ error: 'start_time and end_time required (ISO string)' });
@@ -147,6 +178,10 @@ app.post('/api/tasks/:id/sessions', async (req, res) => {
 
 // List tasks with aggregated info
 app.get('/api/tasks', async (req, res) => {
+  if (!supabase) {
+    return res.status(500).json({ error: 'Database connection unavailable' });
+  }
+
   const { data: tasks, error } = await supabase
     .from('tasks')
     .select(`
@@ -196,6 +231,10 @@ app.get('/api/tasks', async (req, res) => {
 
 // Get task detail + sessions
 app.get('/api/tasks/:id', async (req, res) => {
+  if (!supabase) {
+    return res.status(500).json({ error: 'Database connection unavailable' });
+  }
+
   const id = req.params.id;
 
   const { data: task, error: taskError } = await supabase
@@ -225,6 +264,10 @@ app.get('/api/tasks/:id', async (req, res) => {
 
 // Update task
 app.put('/api/tasks/:id', async (req, res) => {
+  if (!supabase) {
+    return res.status(500).json({ error: 'Database connection unavailable' });
+  }
+
   const id = req.params.id;
   const { title, description, status } = req.body;
   if (!title) return res.status(400).json({ error: 'title required' });
@@ -261,6 +304,10 @@ app.put('/api/tasks/:id', async (req, res) => {
 
 // Delete task
 app.delete('/api/tasks/:id', async (req, res) => {
+  if (!supabase) {
+    return res.status(500).json({ error: 'Database connection unavailable' });
+  }
+
   const id = req.params.id;
 
   const { error } = await supabase
@@ -278,6 +325,10 @@ app.delete('/api/tasks/:id', async (req, res) => {
 
 // Update session (handles both time updates and keterangan updates)
 app.put('/api/tasks/:taskId/sessions/:sessionId', async (req, res) => {
+  if (!supabase) {
+    return res.status(500).json({ error: 'Database connection unavailable' });
+  }
+
   const { taskId, sessionId } = req.params;
   const { start_time, end_time, keterangan } = req.body;
 
@@ -339,6 +390,10 @@ app.put('/api/tasks/:taskId/sessions/:sessionId', async (req, res) => {
 
 // Delete session
 app.delete('/api/tasks/:taskId/sessions/:sessionId', async (req, res) => {
+  if (!supabase) {
+    return res.status(500).json({ error: 'Database connection unavailable' });
+  }
+
   const { sessionId } = req.params;
 
   const { error } = await supabase
@@ -356,6 +411,10 @@ app.delete('/api/tasks/:taskId/sessions/:sessionId', async (req, res) => {
 
 // Get task history by date
 app.get('/api/history', async (req, res) => {
+  if (!supabase) {
+    return res.status(500).json({ error: 'Database connection unavailable' });
+  }
+
   try {
     // Get all tasks with their sessions
     const { data: allTasks, error: tasksError } = await supabase
@@ -453,21 +512,39 @@ app.get('/api/history', async (req, res) => {
   }
 });
 
-// For Vercel serverless functions, we need to export a handler
-module.exports = (req, res) => {
-  // Set CORS headers
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+// For local development, start the server if this file is run directly
+if (require.main === module) {
+  const PORT = process.env.PORT || 3000;
+  const HOST = process.env.HOST || 'localhost';
+  const NODE_ENV = process.env.NODE_ENV || 'development';
 
-  // Handle preflight requests
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
-  }
+  app.listen(PORT, HOST, () => {
+    const baseUrl = NODE_ENV === 'production'
+      ? (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : `http://${HOST}:${PORT}`)
+      : `http://${HOST}:${PORT}`;
 
-  // Route the request to the Express app
-  app(req, res);
-};
+    console.log(`✅ Server running on port ${PORT}`);
+    console.log(`Environment: ${NODE_ENV}`);
+    console.log(`API Base URL: ${baseUrl}`);
+    console.log('Press Ctrl+C to stop the server');
+  });
+} else {
+  // For Vercel serverless functions, we need to export a handler
+  module.exports = (req, res) => {
+    // Set CORS headers
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+
+    // Handle preflight requests
+    if (req.method === 'OPTIONS') {
+      return res.status(200).end();
+    }
+
+    // Route the request to the Express app
+    app(req, res);
+  };
+}
 
 // Export the app for local development compatibility
 module.exports.app = app;
