@@ -39,46 +39,44 @@ time-tracker/
 ## 🛠️ Tech Stack
 
 - **Backend**: Node.js + Express.js
-- **Database**: MySQL (with mysql2 driver)
+- **Database**: Supabase (PostgreSQL)
 - **Frontend**: Vanilla JavaScript, HTML, CSS
 - **Styling**: Custom CSS with dark/light theme support
 
 ## 📋 Prerequisites
 
 - Node.js installed
-- MySQL server accessible
+- Supabase project with database tables created
 
-### For Network Database Access (Recommended)
+### Supabase Setup (Required)
 
-This application is configured to connect to a remote MySQL server. To use this setup:
+This application is configured to connect to a Supabase project. To use this setup:
 
-1. Ensure you're on the same network as the database server
-2. Verify the database server is running and accessible
-3. Default credentials:
-   - host: `<DATABASE_HOST>`
-   - user: `<DATABASE_USER>`
-   - pass: `<DATABASE_PASSWORD>`
-   - db: `<DATABASE_NAME>`
+1. Ensure you have a Supabase account and project created
+2. Create the required database tables in your Supabase SQL editor:
+   ```sql
+   -- Tasks table
+   CREATE TABLE tasks (
+     id BIGSERIAL PRIMARY KEY,
+     title VARCHAR(255) NOT NULL,
+     description TEXT,
+     status TEXT DEFAULT 'active' CHECK (status IN ('active', 'completed')),
+     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+     completed_at TIMESTAMP WITH TIME ZONE
+   );
 
-### For Local XAMPP Setup (Alternative)
-
-If you want to run locally instead of connecting to the remote server:
-
-1. Make sure XAMPP is installed and running
-2. Start Apache and MySQL services in XAMPP Control Panel
-3. Create the database using phpMyAdmin:
-   - Open your browser and go to `http://localhost/phpmyadmin`
-   - Click on the "SQL" tab
-   - Copy and paste the SQL commands from `backend/setup_database.sql` file
-   - Click "Go" to execute
-4. Update your `backend/.env` file with local settings:
+   -- Task sessions table
+   CREATE TABLE task_sessions (
+     id BIGSERIAL PRIMARY KEY,
+     task_id BIGINT REFERENCES tasks(id) ON DELETE CASCADE,
+     start_time TIMESTAMP WITH TIME ZONE NOT NULL,
+     end_time TIMESTAMP WITH TIME ZONE NOT NULL,
+     duration INTEGER NOT NULL,
+     keterangan TEXT,
+     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+   );
    ```
-   DB_HOST=localhost
-   DB_USER=root
-   DB_PASS=  (empty if using default XAMPP)
-   DB_NAME=time_tracker
-   PORT=3000
-   ```
+3. Get your Supabase project URL and API keys from your Supabase dashboard
 
 ## 🚀 Installation & Setup
 
@@ -100,7 +98,34 @@ npm install
 
 ### 2. Database Setup
 
-The server will auto-create the database `time_tracker` and tables `tasks` and `task_sessions` if they don't already exist.
+You need to manually create the database tables in your Supabase project:
+
+1. Go to your Supabase Dashboard
+2. Navigate to Database → SQL Editor
+3. Run the following SQL commands to create the required tables:
+
+```sql
+-- Tasks table
+CREATE TABLE tasks (
+  id BIGSERIAL PRIMARY KEY,
+  title VARCHAR(255) NOT NULL,
+  description TEXT,
+  status TEXT DEFAULT 'active' CHECK (status IN ('active', 'completed')),
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  completed_at TIMESTAMP WITH TIME ZONE
+);
+
+-- Task sessions table
+CREATE TABLE task_sessions (
+  id BIGSERIAL PRIMARY KEY,
+  task_id BIGINT REFERENCES tasks(id) ON DELETE CASCADE,
+  start_time TIMESTAMP WITH TIME ZONE NOT NULL,
+  end_time TIMESTAMP WITH TIME ZONE NOT NULL,
+  duration INTEGER NOT NULL,
+  keterangan TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+```
 
 ### 3. Configure Environment Variables
 
@@ -166,21 +191,21 @@ cd /Users/goodevaninja_mac1/Documents/Asep Septiadi/Portofolio/time-tracker/fron
 ## 📊 Database Schema
 
 ### `tasks` table
-- `id` - INT AUTO_INCREMENT PRIMARY KEY
+- `id` - BIGSERIAL PRIMARY KEY (auto-incrementing)
 - `title` - VARCHAR(255) NOT NULL
 - `description` - TEXT
-- `status` - ENUM('active', 'completed') DEFAULT 'active'
-- `created_at` - TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-- `completed_at` - TIMESTAMP NULL
+- `status` - TEXT DEFAULT 'active' with CHECK constraint ('active' or 'completed')
+- `created_at` - TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+- `completed_at` - TIMESTAMP WITH TIME ZONE NULL
 
 ### `task_sessions` table
-- `id` - INT AUTO_INCREMENT PRIMARY KEY
-- `task_id` - INT NOT NULL (FK to tasks.id)
-- `start_time` - DATETIME NOT NULL
-- `end_time` - DATETIME NOT NULL
-- `duration` - INT NOT NULL (in seconds)
+- `id` - BIGSERIAL PRIMARY KEY (auto-incrementing)
+- `task_id` - BIGINT REFERENCES tasks(id) ON DELETE CASCADE
+- `start_time` - TIMESTAMP WITH TIME ZONE NOT NULL
+- `end_time` - TIMESTAMP WITH TIME ZONE NOT NULL
+- `duration` - INTEGER NOT NULL (in seconds)
 - `keterangan` - TEXT NULL (session descriptions)
-- `created_at` - TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+- `created_at` - TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 
 ## 🎨 Frontend Features
 
@@ -239,11 +264,10 @@ cd /Users/goodevaninja_mac1/Documents/Asep Septiadi/Portofolio/time-tracker/fron
 Create a `.env` file in the `backend` directory with the following template:
 
 ```env
-# Database Configuration
-DB_HOST=localhost
-DB_USER=root
-DB_PASS=
-DB_NAME=time_tracker
+# Supabase Configuration
+NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
 
 # Server Configuration
 PORT=3000
@@ -253,10 +277,9 @@ PORT=3000
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `DB_HOST` | MySQL host | localhost |
-| `DB_USER` | MySQL username | root |
-| `DB_PASS` | MySQL password | (empty) |
-| `DB_NAME` | MySQL database name | time_tracker |
+| `NEXT_PUBLIC_SUPABASE_URL` | Supabase project URL | (required) |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase anon key for client-side operations | (required) |
+| `SUPABASE_SERVICE_ROLE_KEY` | Supabase service role key for server-side operations | (required) |
 | `PORT` | HTTP port the Express server listens on | 3000 |
 
 ### Running with Environment Variables
@@ -264,24 +287,19 @@ PORT=3000
 You can override runtime configuration with environment variables when starting the app:
 
 ```bash
-# For XAMPP users (most common setup):
-cd backend
-DB_HOST=localhost DB_USER=root DB_PASS= DB_NAME=time_tracker npm start
-
-# example: run server on port 3001 with different DB settings
-PORT=3001 DB_HOST=localhost DB_USER=root DB_PASS=<your_password> npm start
+# Example: run server on port 3001 with different Supabase settings
+PORT=3001 NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co npm start
 ```
 
 ## 🧪 Development
 
 ### Running Locally
-For local development, you can run a local MySQL instance:
+For local development:
 
 ```bash
-# Start MySQL locally (using Docker, XAMPP, or native installation)
-# Then run the app with local DB settings
+# Navigate to the backend directory and start the server
 cd backend
-DB_HOST=127.0.0.1 DB_USER=root DB_PASS=<your_local_password> npm start
+npm start
 ```
 
 ### Cross-platform Notes
@@ -548,3 +566,8 @@ Then create a `package.json` with test scripts if one doesn't exist:
   }
 }
 ```
+
+
+## 🔄 Database Migration
+
+For a detailed migration plan from MySQL to Supabase, see [docs/instruction-plan-migration-to-supabase.md](docs/instruction-plan-migration-to-supabase.md).
