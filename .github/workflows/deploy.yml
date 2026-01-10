@@ -24,11 +24,17 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
-    # Update paths in HTML file to be relative
-    - name: Update HTML paths to be relative
+    # Install Node.js to potentially run build scripts if needed
+    - name: Setup Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18'
+
+    # Create dist directory and copy frontend files
+    - name: Prepare frontend files
       run: |
-        sed -i "s|href=\"/style.css\"|href=\"./style.css\"|g" frontend/src/index.html
-        sed -i "s|src=\"/app.js\"|src=\"./app.js\"|g" frontend/src/index.html
+        mkdir -p dist
+        cp -r frontend/src/* dist/
 
     # Configure the backend API URL for GitHub Pages deployment
     - name: Configure backend API URL
@@ -39,13 +45,8 @@ jobs:
           BACKEND_URL="https://your-backend-domain.onrender.com"  # Default placeholder
         fi
 
-        # Insert the script tag before the app.js script tag
-        sed -i "s|<script src=\"./app.js\"></script>|<script>/* Configure backend API for GitHub Pages */ window.BACKEND_API_URL = '\"$BACKEND_URL\"';</script>&|" frontend/src/index.html
-
-    # Copy frontend files to root for proper GitHub Pages serving
-    - name: Copy frontend files to root
-      run: |
-        cp -r frontend/src/* .
+        # Insert the script tag before the app.js script tag to configure the backend API
+        sed -i "s|<script src=\"./app.js\"></script>|<script>/* Configure backend API for GitHub Pages */ window.BACKEND_API_URL = '\"$BACKEND_URL\"';</script>&|" dist/index.html
 
     - name: Setup Pages
       uses: actions/configure-pages@v4
@@ -53,7 +54,7 @@ jobs:
     - name: Upload to GitHub Pages
       uses: actions/upload-pages-artifact@v3
       with:
-        path: .
+        path: ./dist
 
     - name: Deploy to GitHub Pages
       id: deployment
@@ -61,5 +62,5 @@ jobs:
       if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
       with:
         github_token: ${{ secrets.GITHUB_TOKEN }}
-        publish_dir: .
+        publish_dir: ./dist
         publish_branch: gh-pages
