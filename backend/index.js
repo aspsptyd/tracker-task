@@ -1,95 +1,15 @@
 require('dotenv').config();
 const express = require('express');
-const mysql = require('mysql2/promise');
+const { createClient } = require('@supabase/supabase-js');
 const path = require('path');
 
-const DB_HOST = process.env.DB_HOST || 'localhost';
-const DB_USER = process.env.DB_USER || 'root';
-const DB_PASS = process.env.DB_PASS || ''; // Kosongkan jika tidak menggunakan password
-const DB_NAME = process.env.DB_NAME || 'time_tracker';
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const PORT = process.env.PORT || 3000;
 
-async function initDb() {
-  // Connect without database to create it if missing
-  const conn = await mysql.createConnection({
-    host: DB_HOST,
-    user: DB_USER,
-    password: DB_PASS,
-    multipleStatements: true
-  });
-
-  await conn.query(`CREATE DATABASE IF NOT EXISTS \`${DB_NAME}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;`);
-  await conn.end();
-
-  const pool = mysql.createPool({
-    host: DB_HOST,
-    user: DB_USER,
-    password: DB_PASS,
-    database: DB_NAME,
-    waitForConnections: true,
-    connectionLimit: 10,
-    queueLimit: 0
-  });
-
-  // Create tables if not exist
-  const createTasks = `
-    CREATE TABLE IF NOT EXISTS tasks (
-      id INT AUTO_INCREMENT PRIMARY KEY,
-      title VARCHAR(255) NOT NULL,
-      description TEXT,
-      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-      completed_at TIMESTAMP NULL
-    ) ENGINE=InnoDB;
-  `;
-
-  const createSessions = `
-    CREATE TABLE IF NOT EXISTS task_sessions (
-      id INT AUTO_INCREMENT PRIMARY KEY,
-      task_id INT NOT NULL,
-      start_time DATETIME NOT NULL,
-      end_time DATETIME NOT NULL,
-      duration INT NOT NULL,
-      keterangan TEXT DEFAULT NULL,
-      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (task_id) REFERENCES tasks(id) ON DELETE CASCADE
-    ) ENGINE=InnoDB;
-  `;
-
-  await pool.query(createTasks);
-  await pool.query(createSessions);
-
-  // Check if status column exists, if not add it
-  try {
-    const [columns] = await pool.query("SHOW COLUMNS FROM tasks LIKE 'status'");
-    if (columns.length === 0) {
-      await pool.query("ALTER TABLE tasks ADD COLUMN status ENUM('active', 'completed') DEFAULT 'active'");
-    }
-  } catch (err) {
-    console.error('Error checking/adding status column:', err);
-  }
-
-  // Check if completed_at column exists, if not add it
-  try {
-    const [columns] = await pool.query("SHOW COLUMNS FROM tasks LIKE 'completed_at'");
-    if (columns.length === 0) {
-      await pool.query("ALTER TABLE tasks ADD COLUMN completed_at TIMESTAMP NULL");
-    }
-  } catch (err) {
-    console.error('Error checking/adding completed_at column:', err);
-  }
-
-  // Check if keterangan column exists in task_sessions, if not add it
-  try {
-    const [columns] = await pool.query("SHOW COLUMNS FROM task_sessions LIKE 'keterangan'");
-    if (columns.length === 0) {
-      await pool.query("ALTER TABLE task_sessions ADD COLUMN keterangan TEXT DEFAULT NULL");
-    }
-  } catch (err) {
-    console.error('Error checking/adding keterangan column:', err);
-  }
-
-  return pool;
-}
+// Initialize Supabase client with service role key for full access
+const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
 function secondsToString(sec) {
   if (!sec) return '0s';
@@ -103,9 +23,7 @@ async function main() {
   const app = express();
   app.use(express.json());
 
-  const pool = await initDb();
-
-  app.get('/api/ping', (req, res) => res.json({ ok: true, db: DB_HOST }));
+  app.get('/api/ping', (req, res) => res.json({ ok: true, db: 'supabase' }));
 
   // Dashboard Stats
   app.get('/api/stats', async (req, res) => {
@@ -116,46 +34,39 @@ async function main() {
       const todayEnd = new Date();
       todayEnd.setHours(23, 59, 59, 999);
 
-      const [todayTasks] = await pool.query(`
-        SELECT COUNT(DISTINCT t.id) as count, COALESCE(SUM(ts.duration), 0) as total_duration
-        FROM tasks t
-        JOIN task_sessions ts ON t.id = ts.task_id
-        WHERE ts.start_time >= ? AND ts.start_time <= ?
-      `, [todayStart, todayEnd]);
+      const { data: todayTasks, error: todayTasksError } = await supabase
+        .from('task_sessions')
+        .select(`
+          count:task_id,
+          total_duration:sum(duration)
+        `)
+        .join('tasks', 'task_sessions.task_id', 'tasks.id')
+        .gte('task_sessions.start_time', todayStart.toISOString())
+        .lte('task_sessions.start_time', todayEnd.toISOString());
 
-      // 2. Task Running (We can't know for sure from DB only as running state is client-side mostly, 
-      // but we can check if there are sessions that started but not ended? 
-      // Actually the current implementation sends start/end only when stopped.
-      // So "Task Running" is better tracked by client or we need a different DB structure.
-      // However, the requirement asks for "Task Running". 
-      // Since the current backend only stores COMPLETED sessions (start+end), 
-      // the backend doesn't know about currently running tasks unless we change the architecture.
-      // BUT, the prompt asks to "update codenya sekalian".
-      // For now, let's assume the client will handle "Task Running" count or we just return 0 from backend 
-      // and let client override if it has local state. 
-      // OR we can count tasks modified/created today as "active" context.
-      // Let's stick to what we can calculate:
-      
+      if (todayTasksError) throw todayTasksError;
+
       // 3. Total Task in Week
       const weekStart = new Date();
       weekStart.setDate(weekStart.getDate() - weekStart.getDay()); // Sunday
       weekStart.setHours(0, 0, 0, 0);
-      
-      const [weekTasks] = await pool.query(`
-        SELECT COUNT(DISTINCT t.id) as count
-        FROM tasks t
-        JOIN task_sessions ts ON t.id = ts.task_id
-        WHERE ts.start_time >= ?
-      `, [weekStart]);
+
+      const { data: weekTasks, error: weekTasksError } = await supabase
+        .from('task_sessions')
+        .select('count:task_id')
+        .join('tasks', 'task_sessions.task_id', 'tasks.id')
+        .gte('task_sessions.start_time', weekStart.toISOString());
+
+      if (weekTasksError) throw weekTasksError;
 
       res.json({
         today: {
-          count: todayTasks[0].count,
-          duration: todayTasks[0].total_duration,
-          duration_readable: secondsToString(todayTasks[0].total_duration)
+          count: todayTasks[0]?.count || 0,
+          duration: parseInt(todayTasks[0]?.total_duration || 0),
+          duration_readable: secondsToString(parseInt(todayTasks[0]?.total_duration || 0))
         },
         week: {
-          count: weekTasks[0].count
+          count: weekTasks[0]?.count || 0
         }
       });
     } catch (err) {
@@ -168,9 +79,19 @@ async function main() {
   app.post('/api/tasks', async (req, res) => {
     const { title, description } = req.body;
     if (!title) return res.status(400).json({ error: 'title required' });
-    const [result] = await pool.query('INSERT INTO tasks (title, description) VALUES (?, ?)', [title, description || null]);
-    const [rows] = await pool.query('SELECT * FROM tasks WHERE id = ?', [result.insertId]);
-    res.json(rows[0]);
+    
+    const { data, error } = await supabase
+      .from('tasks')
+      .insert([{ title, description: description || null }])
+      .select()
+      .single();
+
+    if (error) {
+      console.error(error);
+      return res.status(400).json({ error: error.message });
+    }
+    
+    res.json(data);
   });
 
   // Create session for task
@@ -185,43 +106,98 @@ async function main() {
 
     const durationSec = Math.max(0, Math.floor((end - start) / 1000));
 
-    // Pass JS Date objects to mysql2 so they are formatted correctly for DATETIME
-    await pool.query('INSERT INTO task_sessions (task_id, start_time, end_time, duration) VALUES (?, ?, ?, ?)', [taskId, start, end, durationSec]);
+    const { error } = await supabase
+      .from('task_sessions')
+      .insert([{
+        task_id: parseInt(taskId),
+        start_time: start.toISOString(),
+        end_time: end.toISOString(),
+        duration: durationSec
+      }]);
+
+    if (error) {
+      console.error(error);
+      return res.status(400).json({ error: error.message });
+    }
+    
     res.json({ ok: true, duration: durationSec });
   });
 
   // List tasks with aggregated info
   app.get('/api/tasks', async (req, res) => {
-    const sql = `
-      SELECT
-        t.id,
-        t.title,
-        t.description,
-        t.status,
-        t.created_at,
-        t.completed_at,
-        COALESCE(SUM(ts.duration), 0) AS total_duration,
-        MIN(ts.start_time) AS first_start,
-        MAX(ts.end_time) AS last_end,
-        COUNT(ts.id) AS sessions_count
-      FROM tasks t
-      LEFT JOIN task_sessions ts ON ts.task_id = t.id
-      GROUP BY t.id
-      ORDER BY t.status ASC, first_start DESC;
-    `;
-    const [rows] = await pool.query(sql);
-    res.json(rows.map(r => ({
-      ...r,
-      total_duration_readable: secondsToString(r.total_duration)
-    })));
+    const { data: tasks, error } = await supabase
+      .from('tasks')
+      .select(`
+        id,
+        title,
+        description,
+        status,
+        created_at,
+        completed_at
+      `)
+      .order('status', { ascending: true })
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error(error);
+      return res.status(400).json({ error: error.message });
+    }
+
+    // For each task, get aggregated session data
+    const tasksWithAggregates = await Promise.all(tasks.map(async (task) => {
+      const { data: sessions, error: sessionError } = await supabase
+        .from('task_sessions')
+        .select('duration, start_time, end_time')
+        .eq('task_id', task.id);
+
+      if (sessionError) {
+        console.error(sessionError);
+        return { ...task, total_duration: 0, total_duration_readable: secondsToString(0), first_start: null, last_end: null, sessions_count: 0 };
+      }
+
+      const totalDuration = sessions.reduce((sum, session) => sum + session.duration, 0);
+      const firstStart = sessions.length > 0 ? new Date(Math.min(...sessions.map(s => new Date(s.start_time)))) : null;
+      const lastEnd = sessions.length > 0 ? new Date(Math.max(...sessions.map(s => new Date(s.end_time)))) : null;
+
+      return {
+        ...task,
+        total_duration: totalDuration,
+        total_duration_readable: secondsToString(totalDuration),
+        first_start: firstStart ? firstStart.toISOString() : null,
+        last_end: lastEnd ? lastEnd.toISOString() : null,
+        sessions_count: sessions.length
+      };
+    }));
+
+    res.json(tasksWithAggregates);
   });
 
   // Get task detail + sessions
   app.get('/api/tasks/:id', async (req, res) => {
     const id = req.params.id;
-    const [[task]] = await pool.query('SELECT * FROM tasks WHERE id = ?', [id]);
-    if (!task) return res.status(404).json({ error: 'not found' });
-    const [sessions] = await pool.query('SELECT * FROM task_sessions WHERE task_id = ? ORDER BY start_time', [id]);
+    
+    const { data: task, error: taskError } = await supabase
+      .from('tasks')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    if (taskError) {
+      console.error(taskError);
+      return res.status(404).json({ error: 'not found' });
+    }
+    
+    const { data: sessions, error: sessionError } = await supabase
+      .from('task_sessions')
+      .select('*')
+      .eq('task_id', id)
+      .order('start_time', { ascending: true });
+
+    if (sessionError) {
+      console.error(sessionError);
+      return res.status(400).json({ error: sessionError.message });
+    }
+    
     res.json({ task, sessions });
   });
 
@@ -230,36 +206,51 @@ async function main() {
     const id = req.params.id;
     const { title, description, status } = req.body;
     if (!title) return res.status(400).json({ error: 'title required' });
-    const updateFields = [];
-    const updateValues = [];
-
-    updateFields.push('title = ?');
-    updateValues.push(title);
-
-    updateFields.push('description = ?');
-    updateValues.push(description || null);
-
+    
+    const updateData = {
+      title,
+      description: description || null
+    };
+    
     if (status) {
-      updateFields.push('status = ?');
-      updateValues.push(status);
-
+      updateData.status = status;
       // Set completed_at when status is 'completed', otherwise set to NULL
       if (status === 'completed') {
-        updateFields.push('completed_at = NOW()');
+        updateData.completed_at = new Date().toISOString();
       } else {
-        updateFields.push('completed_at = NULL');
+        updateData.completed_at = null;
       }
     }
 
-    await pool.query(`UPDATE tasks SET ${updateFields.join(', ')} WHERE id = ?`, [...updateValues, id]);
-    const [[task]] = await pool.query('SELECT * FROM tasks WHERE id = ?', [id]);
-    res.json(task);
+    const { data, error } = await supabase
+      .from('tasks')
+      .update(updateData)
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) {
+      console.error(error);
+      return res.status(400).json({ error: error.message });
+    }
+    
+    res.json(data);
   });
 
   // Delete task
   app.delete('/api/tasks/:id', async (req, res) => {
     const id = req.params.id;
-    await pool.query('DELETE FROM tasks WHERE id = ?', [id]);
+    
+    const { error } = await supabase
+      .from('tasks')
+      .delete()
+      .eq('id', id);
+
+    if (error) {
+      console.error(error);
+      return res.status(400).json({ error: error.message });
+    }
+    
     res.json({ ok: true });
   });
 
@@ -269,12 +260,19 @@ async function main() {
     const { start_time, end_time, keterangan } = req.body;
 
     // Get current session data to use for validation if only keterangan is being updated
-    const [[currentSession]] = await pool.query('SELECT * FROM task_sessions WHERE id = ? AND task_id = ?', [sessionId, taskId]);
-    if (!currentSession) return res.status(404).json({ error: 'session not found' });
+    const { data: currentSession, error: currentSessionError } = await supabase
+      .from('task_sessions')
+      .select('*')
+      .eq('id', sessionId)
+      .eq('task_id', taskId)
+      .single();
 
-    // Prepare update fields and values
-    const updateFields = [];
-    const updateValues = [];
+    if (currentSessionError || !currentSession) {
+      return res.status(404).json({ error: 'session not found' });
+    }
+
+    // Prepare update data
+    const updateData = {};
 
     // Handle start_time and end_time updates (only if both are provided)
     if (start_time && end_time) {
@@ -283,8 +281,9 @@ async function main() {
       if (isNaN(start.getTime()) || isNaN(end.getTime())) return res.status(400).json({ error: 'invalid date format' });
       const durationSec = Math.max(0, Math.floor((end - start) / 1000));
 
-      updateFields.push('start_time = ?', 'end_time = ?', 'duration = ?');
-      updateValues.push(start, end, durationSec);
+      updateData.start_time = start.toISOString();
+      updateData.end_time = end.toISOString();
+      updateData.duration = durationSec;
     } else if (start_time || end_time) {
       // If only one of start_time or end_time is provided, return an error
       return res.status(400).json({ error: 'both start_time and end_time required when updating time' });
@@ -292,104 +291,115 @@ async function main() {
 
     // Add keterangan to update if provided
     if (typeof keterangan !== 'undefined') {
-      updateFields.push('keterangan = ?');
-      updateValues.push(keterangan || null);
+      updateData.keterangan = keterangan || null;
     }
 
     // If no fields to update, return an error
-    if (updateFields.length === 0) {
+    if (Object.keys(updateData).length === 0) {
       return res.status(400).json({ error: 'no fields to update' });
     }
 
-    await pool.query(`UPDATE task_sessions SET ${updateFields.join(', ')} WHERE id = ? AND task_id = ?`, [...updateValues, sessionId, taskId]);
-    const [[row]] = await pool.query('SELECT * FROM task_sessions WHERE id = ?', [sessionId]);
-    res.json(row);
+    const { data, error } = await supabase
+      .from('task_sessions')
+      .update(updateData)
+      .eq('id', sessionId)
+      .eq('task_id', taskId)
+      .select()
+      .single();
+
+    if (error) {
+      console.error(error);
+      return res.status(400).json({ error: error.message });
+    }
+    
+    res.json(data);
   });
 
   // Delete session
   app.delete('/api/tasks/:taskId/sessions/:sessionId', async (req, res) => {
     const { sessionId } = req.params;
-    await pool.query('DELETE FROM task_sessions WHERE id = ?', [sessionId]);
+    
+    const { error } = await supabase
+      .from('task_sessions')
+      .delete()
+      .eq('id', sessionId);
+
+    if (error) {
+      console.error(error);
+      return res.status(400).json({ error: error.message });
+    }
+    
     res.json({ ok: true });
   });
 
   // Get task history by date
   app.get('/api/history', async (req, res) => {
     try {
-      // Get all completed tasks grouped by their creation date
-      const [completedTasks] = await pool.query(`
-        SELECT
-          t.id,
-          t.title,
-          t.description,
-          t.status,
-          t.created_at,
-          t.completed_at,
-          DATE_FORMAT(t.created_at, '%Y-%m-%d') as creation_date,
-          COALESCE(SUM(ts.duration), 0) AS total_duration
-        FROM tasks t
-        LEFT JOIN task_sessions ts ON ts.task_id = t.id
-        WHERE t.status = 'completed' AND t.completed_at IS NOT NULL
-        GROUP BY t.id
-        ORDER BY t.created_at DESC, t.completed_at DESC
-      `);
+      // Get all tasks with their sessions
+      const { data: allTasks, error: tasksError } = await supabase
+        .from('tasks')
+        .select(`
+          id,
+          title,
+          description,
+          status,
+          created_at,
+          completed_at
+        `)
+        .order('created_at', { ascending: false });
 
-      // Get all tasks (completed and active) grouped by their creation date
-      const [allTasks] = await pool.query(`
-        SELECT
-          t.id,
-          t.title,
-          t.description,
-          t.status,
-          t.created_at,
-          t.completed_at,
-          DATE_FORMAT(t.created_at, '%Y-%m-%d') as creation_date,
-          COALESCE(SUM(ts.duration), 0) AS total_duration
-        FROM tasks t
-        LEFT JOIN task_sessions ts ON ts.task_id = t.id
-        GROUP BY t.id
-        ORDER BY t.created_at DESC
-      `);
+      if (tasksError) throw tasksError;
 
-      // Group completed tasks by their creation date (the date when they were originally created)
+      // Get all sessions to join with tasks
+      const { data: allSessions, error: sessionsError } = await supabase
+        .from('task_sessions')
+        .select('task_id, duration');
+
+      if (sessionsError) throw sessionsError;
+
+      // Calculate total duration for each task
+      const tasksWithDuration = allTasks.map(task => {
+        const taskSessions = allSessions.filter(session => session.task_id === task.id);
+        const totalDuration = taskSessions.reduce((sum, session) => sum + session.duration, 0);
+        
+        return {
+          ...task,
+          total_duration: totalDuration
+        };
+      });
+
+      // Group tasks by creation date
+      const tasksByCreationDate = {};
+      tasksWithDuration.forEach(task => {
+        const creationDate = new Date(task.created_at).toISOString().split('T')[0];
+        if (!tasksByCreationDate[creationDate]) {
+          tasksByCreationDate[creationDate] = [];
+        }
+        tasksByCreationDate[creationDate].push(task);
+      });
+
+      // Get completed tasks grouped by creation date
       const completedTasksByCreationDate = {};
-      completedTasks.forEach(task => {
-        const date = task.creation_date;
-        if (!completedTasksByCreationDate[date]) {
-          completedTasksByCreationDate[date] = [];
-        }
-        completedTasksByCreationDate[date].push(task);
-      });
-
-      // Group all tasks by creation date
-      const allTasksByCreationDate = {};
-      allTasks.forEach(task => {
-        const date = task.creation_date;
-        if (!allTasksByCreationDate[date]) {
-          allTasksByCreationDate[date] = [];
-        }
-        allTasksByCreationDate[date].push(task);
-      });
-
-      // Get unique dates that have completed tasks
-      const datesWithCompletedTasks = new Set();
-      completedTasks.forEach(task => {
-        datesWithCompletedTasks.add(task.creation_date);
-      });
+      tasksWithDuration
+        .filter(task => task.status === 'completed' && task.completed_at)
+        .forEach(task => {
+          const creationDate = new Date(task.created_at).toISOString().split('T')[0];
+          if (!completedTasksByCreationDate[creationDate]) {
+            completedTasksByCreationDate[creationDate] = [];
+          }
+          completedTasksByCreationDate[creationDate].push(task);
+        });
 
       // Format the response with date labels and progress
       const historyData = [];
       const today = new Date().toISOString().split('T')[0]; // Format: YYYY-MM-DD
       const options = { day: 'numeric', month: 'short', year: 'numeric' };
 
-      // Process only dates that have completed tasks
-      for (const creationDate of datesWithCompletedTasks) {
-        // Get all tasks created on this date
-        const allTasksForDate = allTasksByCreationDate[creationDate] || [];
-        // Count total tasks created on this date
+      // Process dates that have completed tasks
+      for (const creationDate in completedTasksByCreationDate) {
+        const allTasksForDate = tasksByCreationDate[creationDate] || [];
         const totalTasksOnDate = allTasksForDate.length;
 
-        // Get completed tasks created on this date
         const completedTasksForDate = completedTasksByCreationDate[creationDate] || [];
         const completedTasksCount = completedTasksForDate.length;
 
@@ -426,7 +436,7 @@ async function main() {
 
   app.listen(PORT, () => {
     console.log(`Server started on http://localhost:${PORT}`);
-    console.log(`DB host: ${DB_HOST}, DB name: ${DB_NAME}`);
+    console.log(`Connected to Supabase: ${SUPABASE_URL}`);
   });
 }
 
