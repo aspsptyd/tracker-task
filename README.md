@@ -80,6 +80,18 @@ This application is configured to connect to a Supabase project. To use this set
 
 ## 🚀 Installation & Setup
 
+## 🌐 GitHub Pages Deployment
+
+The frontend of this application is deployed to GitHub Pages. Once configured, it will be accessible at:
+
+```
+https://aspsptyd.github.io/tracker-task/
+```
+
+Note: The frontend needs to connect to a backend server to function properly. See the backend configuration section below.
+
+## 🚀 Local Installation & Setup
+
 ### 1. Clone and Install Dependencies
 
 ```bash
