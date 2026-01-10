@@ -836,6 +836,27 @@ One of the key features of this application is its ability to seamlessly transit
 
 This design ensures that the same codebase works consistently across different environments without requiring code changes during deployment.
 
+### Dynamic Environment Configuration
+The application supports dynamic configuration switching through environment variables:
+
+#### Runtime Environment Variables
+- `NODE_ENV`: Sets the environment mode (development/production)
+- `PORT`: Specifies the port number for the server (defaults to 3000)
+- `HOST`: Specifies the host address (defaults to localhost)
+- `VERCEL_URL`: Auto-configured when deployed to Vercel
+
+#### Deployment Flexibility
+The application can run in multiple modes:
+- **Local Development**: Starts a traditional Express server when run directly with `node index.js`
+- **Serverless Functions**: Exports a handler function for Vercel deployment
+- **Containerized Deployment**: Works with Docker and other container solutions
+- **Traditional Hosting**: Compatible with standard Node.js hosting providers
+
+#### Environment-Specific Behavior
+- **Development Mode**: Optimized for local development with detailed logging
+- **Production Mode**: Optimized for performance and security in deployed environments
+- **Configuration Override**: All settings can be overridden via environment variables without code changes
+
 ### Known Issues & Solutions
 - **Issue**: Previously, CSS and JavaScript files were not loading correctly due to routing conflicts in the Vercel serverless environment
 - **Solution**: Added specific routes for static files to ensure proper content type delivery
