@@ -40,6 +40,10 @@ const path = require('path');
 const app = express();
 app.use(express.json());
 
+// Import authentication routes and middleware
+const authRoutes = require('./src/auth/routes');
+const { authenticateUser } = require('./src/auth/middleware');
+
 // Serve static files from the current directory (where frontend files are copied)
 app.use(express.static(__dirname));
 
@@ -57,6 +61,9 @@ app.get('/app.js', (req, res) => {
   res.sendFile(path.join(__dirname, 'app.js'));
 });
 
+// Mount authentication routes
+app.use('/auth', authRoutes);
+
 
 // Define all API routes
 app.get('/api/ping', async (req, res) => {
@@ -67,39 +74,55 @@ app.get('/api/ping', async (req, res) => {
 });
 
 // Dashboard Stats
-app.get('/api/stats', async (req, res) => {
+app.get('/api/stats', authenticateUser, async (req, res) => {
   if (!supabase) {
     return res.status(500).json({ error: 'Database connection unavailable' });
   }
 
   try {
+    // Build query based on whether user is authenticated
+    let query = supabase
+      .from('task_sessions')
+      .select(`
+        count:task_id,
+        total_duration:sum(duration)
+      `)
+      .join('tasks', 'task_sessions.task_id', 'tasks.id');
+
+    // Add user filter if authenticated
+    if (req.userId) {
+      query = query.eq('tasks.user_id', req.userId);
+    }
+
     // 1. Total Task Today
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
     const todayEnd = new Date();
     todayEnd.setHours(23, 59, 59, 999);
 
-    const { data: todayTasks, error: todayTasksError } = await supabase
-      .from('task_sessions')
-      .select(`
-        count:task_id,
-        total_duration:sum(duration)
-      `)
-      .join('tasks', 'task_sessions.task_id', 'tasks.id')
+    const { data: todayTasks, error: todayTasksError } = await query
       .gte('task_sessions.start_time', todayStart.toISOString())
       .lte('task_sessions.start_time', todayEnd.toISOString());
 
     if (todayTasksError) throw todayTasksError;
+
+    // Build week query similarly
+    let weekQuery = supabase
+      .from('task_sessions')
+      .select('count:task_id')
+      .join('tasks', 'task_sessions.task_id', 'tasks.id');
+
+    // Add user filter if authenticated
+    if (req.userId) {
+      weekQuery = weekQuery.eq('tasks.user_id', req.userId);
+    }
 
     // 3. Total Task in Week
     const weekStart = new Date();
     weekStart.setDate(weekStart.getDate() - weekStart.getDay()); // Sunday
     weekStart.setHours(0, 0, 0, 0);
 
-    const { data: weekTasks, error: weekTasksError } = await supabase
-      .from('task_sessions')
-      .select('count:task_id')
-      .join('tasks', 'task_sessions.task_id', 'tasks.id')
+    const { data: weekTasks, error: weekTasksError } = await weekQuery
       .gte('task_sessions.start_time', weekStart.toISOString());
 
     if (weekTasksError) throw weekTasksError;
@@ -121,7 +144,7 @@ app.get('/api/stats', async (req, res) => {
 });
 
 // Create task
-app.post('/api/tasks', async (req, res) => {
+app.post('/api/tasks', authenticateUser, async (req, res) => {
   if (!supabase) {
     return res.status(500).json({ error: 'Database connection unavailable' });
   }
@@ -129,9 +152,20 @@ app.post('/api/tasks', async (req, res) => {
   const { title, description } = req.body;
   if (!title) return res.status(400).json({ error: 'title required' });
 
+  // Prepare the insert data with user_id if authenticated
+  const insertData = {
+    title,
+    description: description || null
+  };
+
+  // Add user_id if the user is authenticated
+  if (req.userId) {
+    insertData.user_id = req.userId;
+  }
+
   const { data, error } = await supabase
     .from('tasks')
-    .insert([{ title, description: description || null }])
+    .insert([insertData])
     .select()
     .single();
 
@@ -144,7 +178,7 @@ app.post('/api/tasks', async (req, res) => {
 });
 
 // Create session for task
-app.post('/api/tasks/:id/sessions', async (req, res) => {
+app.post('/api/tasks/:id/sessions', authenticateUser, async (req, res) => {
   if (!supabase) {
     return res.status(500).json({ error: 'Database connection unavailable' });
   }
@@ -159,14 +193,22 @@ app.post('/api/tasks/:id/sessions', async (req, res) => {
 
   const durationSec = Math.max(0, Math.floor((end - start) / 1000));
 
+  // Prepare the insert data with user_id if authenticated
+  const insertData = {
+    task_id: parseInt(taskId),
+    start_time: start.toISOString(),
+    end_time: end.toISOString(),
+    duration: durationSec
+  };
+
+  // Add user_id if the user is authenticated
+  if (req.userId) {
+    insertData.user_id = req.userId;
+  }
+
   const { error } = await supabase
     .from('task_sessions')
-    .insert([{
-      task_id: parseInt(taskId),
-      start_time: start.toISOString(),
-      end_time: end.toISOString(),
-      duration: durationSec
-    }]);
+    .insert([insertData]);
 
   if (error) {
     console.error(error);
@@ -177,12 +219,13 @@ app.post('/api/tasks/:id/sessions', async (req, res) => {
 });
 
 // List tasks with aggregated info
-app.get('/api/tasks', async (req, res) => {
+app.get('/api/tasks', authenticateUser, async (req, res) => {
   if (!supabase) {
     return res.status(500).json({ error: 'Database connection unavailable' });
   }
 
-  const { data: tasks, error } = await supabase
+  // Build query based on whether user is authenticated
+  let query = supabase
     .from('tasks')
     .select(`
       id,
@@ -195,6 +238,13 @@ app.get('/api/tasks', async (req, res) => {
     .order('status', { ascending: true })
     .order('created_at', { ascending: false });
 
+  // Add user filter if authenticated
+  if (req.userId) {
+    query = query.eq('user_id', req.userId);
+  }
+
+  const { data: tasks, error } = await query;
+
   if (error) {
     console.error(error);
     return res.status(400).json({ error: error.message });
@@ -202,10 +252,18 @@ app.get('/api/tasks', async (req, res) => {
 
   // For each task, get aggregated session data
   const tasksWithAggregates = await Promise.all(tasks.map(async (task) => {
-    const { data: sessions, error: sessionError } = await supabase
+    // Build session query with user filter if authenticated
+    let sessionQuery = supabase
       .from('task_sessions')
       .select('duration, start_time, end_time')
       .eq('task_id', task.id);
+
+    // Add user filter if authenticated
+    if (req.userId) {
+      sessionQuery = sessionQuery.eq('user_id', req.userId);
+    }
+
+    const { data: sessions, error: sessionError } = await sessionQuery;
 
     if (sessionError) {
       console.error(sessionError);
@@ -230,29 +288,45 @@ app.get('/api/tasks', async (req, res) => {
 });
 
 // Get task detail + sessions
-app.get('/api/tasks/:id', async (req, res) => {
+app.get('/api/tasks/:id', authenticateUser, async (req, res) => {
   if (!supabase) {
     return res.status(500).json({ error: 'Database connection unavailable' });
   }
 
   const id = req.params.id;
 
-  const { data: task, error: taskError } = await supabase
+  // Build task query with user filter if authenticated
+  let taskQuery = supabase
     .from('tasks')
     .select('*')
     .eq('id', id)
     .single();
+
+  // Add user filter if authenticated
+  if (req.userId) {
+    taskQuery = taskQuery.eq('user_id', req.userId);
+  }
+
+  const { data: task, error: taskError } = await taskQuery;
 
   if (taskError) {
     console.error(taskError);
     return res.status(404).json({ error: 'not found' });
   }
 
-  const { data: sessions, error: sessionError } = await supabase
+  // Build session query with user filter if authenticated
+  let sessionQuery = supabase
     .from('task_sessions')
     .select('*')
     .eq('task_id', id)
     .order('start_time', { ascending: true });
+
+  // Add user filter if authenticated
+  if (req.userId) {
+    sessionQuery = sessionQuery.eq('user_id', req.userId);
+  }
+
+  const { data: sessions, error: sessionError } = await sessionQuery;
 
   if (sessionError) {
     console.error(sessionError);
@@ -263,7 +337,7 @@ app.get('/api/tasks/:id', async (req, res) => {
 });
 
 // Update task
-app.put('/api/tasks/:id', async (req, res) => {
+app.put('/api/tasks/:id', authenticateUser, async (req, res) => {
   if (!supabase) {
     return res.status(500).json({ error: 'Database connection unavailable' });
   }
@@ -287,12 +361,20 @@ app.put('/api/tasks/:id', async (req, res) => {
     }
   }
 
-  const { data, error } = await supabase
+  // Build update query with user filter if authenticated
+  let updateQuery = supabase
     .from('tasks')
     .update(updateData)
     .eq('id', id)
     .select()
     .single();
+
+  // Add user filter if authenticated
+  if (req.userId) {
+    updateQuery = updateQuery.eq('user_id', req.userId);
+  }
+
+  const { data, error } = await updateQuery;
 
   if (error) {
     console.error(error);
@@ -303,17 +385,25 @@ app.put('/api/tasks/:id', async (req, res) => {
 });
 
 // Delete task
-app.delete('/api/tasks/:id', async (req, res) => {
+app.delete('/api/tasks/:id', authenticateUser, async (req, res) => {
   if (!supabase) {
     return res.status(500).json({ error: 'Database connection unavailable' });
   }
 
   const id = req.params.id;
 
-  const { error } = await supabase
+  // Build delete query with user filter if authenticated
+  let deleteQuery = supabase
     .from('tasks')
     .delete()
     .eq('id', id);
+
+  // Add user filter if authenticated
+  if (req.userId) {
+    deleteQuery = deleteQuery.eq('user_id', req.userId);
+  }
+
+  const { error } = await deleteQuery;
 
   if (error) {
     console.error(error);
@@ -324,7 +414,7 @@ app.delete('/api/tasks/:id', async (req, res) => {
 });
 
 // Update session (handles both time updates and keterangan updates)
-app.put('/api/tasks/:taskId/sessions/:sessionId', async (req, res) => {
+app.put('/api/tasks/:taskId/sessions/:sessionId', authenticateUser, async (req, res) => {
   if (!supabase) {
     return res.status(500).json({ error: 'Database connection unavailable' });
   }
@@ -332,13 +422,20 @@ app.put('/api/tasks/:taskId/sessions/:sessionId', async (req, res) => {
   const { taskId, sessionId } = req.params;
   const { start_time, end_time, keterangan } = req.body;
 
-  // Get current session data to use for validation if only keterangan is being updated
-  const { data: currentSession, error: currentSessionError } = await supabase
+  // Build query to get current session data with user filter if authenticated
+  let currentSessionQuery = supabase
     .from('task_sessions')
     .select('*')
     .eq('id', sessionId)
     .eq('task_id', taskId)
     .single();
+
+  // Add user filter if authenticated
+  if (req.userId) {
+    currentSessionQuery = currentSessionQuery.eq('user_id', req.userId);
+  }
+
+  const { data: currentSession, error: currentSessionError } = await currentSessionQuery;
 
   if (currentSessionError || !currentSession) {
     return res.status(404).json({ error: 'session not found' });
@@ -372,13 +469,21 @@ app.put('/api/tasks/:taskId/sessions/:sessionId', async (req, res) => {
     return res.status(400).json({ error: 'no fields to update' });
   }
 
-  const { data, error } = await supabase
+  // Build update query with user filter if authenticated
+  let updateQuery = supabase
     .from('task_sessions')
     .update(updateData)
     .eq('id', sessionId)
     .eq('task_id', taskId)
     .select()
     .single();
+
+  // Add user filter if authenticated
+  if (req.userId) {
+    updateQuery = updateQuery.eq('user_id', req.userId);
+  }
+
+  const { data, error } = await updateQuery;
 
   if (error) {
     console.error(error);
@@ -389,17 +494,25 @@ app.put('/api/tasks/:taskId/sessions/:sessionId', async (req, res) => {
 });
 
 // Delete session
-app.delete('/api/tasks/:taskId/sessions/:sessionId', async (req, res) => {
+app.delete('/api/tasks/:taskId/sessions/:sessionId', authenticateUser, async (req, res) => {
   if (!supabase) {
     return res.status(500).json({ error: 'Database connection unavailable' });
   }
 
   const { sessionId } = req.params;
 
-  const { error } = await supabase
+  // Build delete query with user filter if authenticated
+  let deleteQuery = supabase
     .from('task_sessions')
     .delete()
     .eq('id', sessionId);
+
+  // Add user filter if authenticated
+  if (req.userId) {
+    deleteQuery = deleteQuery.eq('user_id', req.userId);
+  }
+
+  const { error } = await deleteQuery;
 
   if (error) {
     console.error(error);
@@ -410,14 +523,14 @@ app.delete('/api/tasks/:taskId/sessions/:sessionId', async (req, res) => {
 });
 
 // Get task history by date
-app.get('/api/history', async (req, res) => {
+app.get('/api/history', authenticateUser, async (req, res) => {
   if (!supabase) {
     return res.status(500).json({ error: 'Database connection unavailable' });
   }
 
   try {
-    // Get all tasks with their sessions
-    const { data: allTasks, error: tasksError } = await supabase
+    // Build tasks query with user filter if authenticated
+    let tasksQuery = supabase
       .from('tasks')
       .select(`
         id,
@@ -429,12 +542,28 @@ app.get('/api/history', async (req, res) => {
       `)
       .order('created_at', { ascending: false });
 
+    // Add user filter if authenticated
+    if (req.userId) {
+      tasksQuery = tasksQuery.eq('user_id', req.userId);
+    }
+
+    // Get all tasks with their sessions
+    const { data: allTasks, error: tasksError } = await tasksQuery;
+
     if (tasksError) throw tasksError;
 
-    // Get all sessions to join with tasks
-    const { data: allSessions, error: sessionsError } = await supabase
+    // Build sessions query with user filter if authenticated
+    let sessionsQuery = supabase
       .from('task_sessions')
       .select('task_id, duration');
+
+    // Add user filter if authenticated
+    if (req.userId) {
+      sessionsQuery = sessionsQuery.eq('user_id', req.userId);
+    }
+
+    // Get all sessions to join with tasks
+    const { data: allSessions, error: sessionsError } = await sessionsQuery;
 
     if (sessionsError) throw sessionsError;
 
