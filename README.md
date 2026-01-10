@@ -597,6 +597,56 @@ function logout() {
 // Add event listener to logout button
 document.getElementById('logoutBtn').addEventListener('click', logout);
 ```
+
+## 🔧 Troubleshooting Common Issues
+
+### Registration Error: "Unexpected token '<'"
+This error typically occurs when the server returns an HTML error page instead of the expected JSON response. Common causes and solutions:
+
+1. **Server Not Running**: Make sure the backend server is running:
+   ```bash
+   cd backend
+   npm start
+   ```
+
+2. **Supabase Configuration**: Ensure your `.env` file has the correct Supabase configuration:
+   ```env
+   NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+   NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+   SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+   ```
+
+3. **Database Tables**: Make sure the `profiles` table exists in your Supabase database. Run the migration SQL:
+   ```sql
+   -- Create profiles table for user information
+   CREATE TABLE IF NOT EXISTS profiles (
+     id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+     email TEXT UNIQUE,
+     nama_lengkap TEXT NOT NULL,
+     alamat TEXT,
+     username TEXT UNIQUE NOT NULL,
+     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+     PRIMARY KEY (id)
+   );
+
+   -- Enable Row Level Security (RLS) for profiles table
+   ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
+   ```
+
+4. **Check Server Logs**: Look at the server console for specific error messages when registration fails.
+
+5. **CORS Configuration**: Ensure your Supabase project has the correct CORS settings for your domain.
+
+### Login Error: "Invalid credentials"
+- Verify that the user account exists in the Supabase Auth system
+- Check that the email/username and password are correct
+- Ensure the user is confirmed (if email confirmation is required)
+
+### API Calls Failing After Login
+- Verify that the authentication token is being included in API requests
+- Check that the token hasn't expired
+- Ensure the user-specific data isolation is working correctly
 <form id="loginForm">
   <input type="text" id="email_or_username" placeholder="Email or Username" required>
   <input type="password" id="password" placeholder="Password" required>
