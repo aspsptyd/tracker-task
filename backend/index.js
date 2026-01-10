@@ -44,7 +44,14 @@ app.use(express.json());
 const authRoutes = require('./src/auth/routes');
 const { authenticateUser } = require('./src/auth/middleware');
 
+// Mount authentication routes BEFORE static middleware to prevent conflicts
+app.use('/auth', authRoutes);
+
+// Define all API routes BEFORE static middleware to prevent conflicts
+// (API routes are defined later in the file)
+
 // Serve static files from the current directory (where frontend files are copied)
+// This should come AFTER all API and auth routes to prevent conflicts
 app.use(express.static(__dirname));
 
 // Root route to serve the main HTML file
@@ -60,9 +67,6 @@ app.get('/style.css', (req, res) => {
 app.get('/app.js', (req, res) => {
   res.sendFile(path.join(__dirname, 'app.js'));
 });
-
-// Mount authentication routes
-app.use('/auth', authRoutes);
 
 
 // Define all API routes
