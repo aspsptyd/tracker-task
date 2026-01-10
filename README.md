@@ -159,43 +159,444 @@ You can create simple HTML forms for register and login:
 
 **Register Form Example:**
 ```html
-<form id="registerForm">
-  <input type="email" id="email" placeholder="Email" required>
-  <input type="text" id="nama_lengkap" placeholder="Full Name" required>
-  <input type="text" id="alamat" placeholder="Address">
-  <input type="text" id="username" placeholder="Username" required>
-  <input type="password" id="password" placeholder="Password" required>
-  <button type="submit">Register</button>
-</form>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Register - Time Tracker</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 500px;
+      margin: 50px auto;
+      padding: 20px;
+      background-color: #f5f5f5;
+    }
+    .form-container {
+      background: white;
+      padding: 30px;
+      border-radius: 8px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    .form-group {
+      margin-bottom: 15px;
+    }
+    label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: bold;
+    }
+    input {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      box-sizing: border-box;
+    }
+    button {
+      width: 100%;
+      padding: 12px;
+      background-color: #007bff;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 16px;
+    }
+    button:hover {
+      background-color: #0056b3;
+    }
+    .message {
+      margin-top: 15px;
+      padding: 10px;
+      border-radius: 4px;
+      text-align: center;
+    }
+    .success {
+      background-color: #d4edda;
+      color: #155724;
+      border: 1px solid #c3e6cb;
+    }
+    .error {
+      background-color: #f8d7da;
+      color: #721c24;
+      border: 1px solid #f5c6cb;
+    }
+    .login-link {
+      text-align: center;
+      margin-top: 15px;
+    }
+    .login-link a {
+      color: #007bff;
+      text-decoration: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="form-container">
+    <h2>Create Account</h2>
+    <form id="registerForm">
+      <div class="form-group">
+        <label for="email">Email:</label>
+        <input type="email" id="email" placeholder="Enter your email" required>
+      </div>
 
-<script>
-document.getElementById('registerForm').addEventListener('submit', async (e) => {
-  e.preventDefault();
+      <div class="form-group">
+        <label for="nama_lengkap">Full Name:</label>
+        <input type="text" id="nama_lengkap" placeholder="Enter your full name" required>
+      </div>
 
-  const formData = {
-    email: document.getElementById('email').value,
-    nama_lengkap: document.getElementById('nama_lengkap').value,
-    alamat: document.getElementById('alamat').value,
-    username: document.getElementById('username').value,
-    password: document.getElementById('password').value
-  };
+      <div class="form-group">
+        <label for="alamat">Address:</label>
+        <input type="text" id="alamat" placeholder="Enter your address">
+      </div>
 
-  const response = await fetch('/auth/register', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify(formData)
-  });
+      <div class="form-group">
+        <label for="username">Username:</label>
+        <input type="text" id="username" placeholder="Choose a username" required>
+      </div>
 
-  const result = await response.json();
-  console.log(result);
-});
-</script>
+      <div class="form-group">
+        <label for="password">Password:</label>
+        <input type="password" id="password" placeholder="Create a password" required>
+      </div>
+
+      <button type="submit" id="registerBtn">Register</button>
+    </form>
+
+    <div id="message"></div>
+
+    <div class="login-link">
+      Already have an account? <a href="login.html">Login here</a>
+    </div>
+  </div>
+
+  <script>
+    document.getElementById('registerForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      // Get form values
+      const email = document.getElementById('email').value;
+      const nama_lengkap = document.getElementById('nama_lengkap').value;
+      const alamat = document.getElementById('alamat').value;
+      const username = document.getElementById('username').value;
+      const password = document.getElementById('password').value;
+
+      // Disable button and show loading state
+      const registerBtn = document.getElementById('registerBtn');
+      const originalText = registerBtn.textContent;
+      registerBtn.textContent = 'Registering...';
+      registerBtn.disabled = true;
+
+      try {
+        const response = await fetch('/auth/register', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            email,
+            nama_lengkap,
+            alamat,
+            username,
+            password
+          })
+        });
+
+        const result = await response.json();
+
+        const messageDiv = document.getElementById('message');
+
+        if (result.success) {
+          messageDiv.innerHTML = '<div class="message success">Registration successful! Redirecting to login...</div>';
+
+          // Redirect to login page after a short delay
+          setTimeout(() => {
+            window.location.href = 'login.html';
+          }, 2000);
+        } else {
+          messageDiv.innerHTML = '<div class="message error">' + result.message + '</div>';
+        }
+      } catch (error) {
+        const messageDiv = document.getElementById('message');
+        messageDiv.innerHTML = '<div class="message error">An error occurred. Please try again.</div>';
+        console.error('Registration error:', error);
+      } finally {
+        // Re-enable button
+        registerBtn.textContent = originalText;
+        registerBtn.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>
 ```
 
 **Login Form Example:**
 ```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login - Time Tracker</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 500px;
+      margin: 50px auto;
+      padding: 20px;
+      background-color: #f5f5f5;
+    }
+    .form-container {
+      background: white;
+      padding: 30px;
+      border-radius: 8px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    .form-group {
+      margin-bottom: 15px;
+    }
+    label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: bold;
+    }
+    input {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      box-sizing: border-box;
+    }
+    button {
+      width: 100%;
+      padding: 12px;
+      background-color: #28a745;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 16px;
+    }
+    button:hover {
+      background-color: #218838;
+    }
+    .message {
+      margin-top: 15px;
+      padding: 10px;
+      border-radius: 4px;
+      text-align: center;
+    }
+    .success {
+      background-color: #d4edda;
+      color: #155724;
+      border: 1px solid #c3e6cb;
+    }
+    .error {
+      background-color: #f8d7da;
+      color: #721c24;
+      border: 1px solid #f5c6cb;
+    }
+    .register-link {
+      text-align: center;
+      margin-top: 15px;
+    }
+    .register-link a {
+      color: #007bff;
+      text-decoration: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="form-container">
+    <h2>Login to Your Account</h2>
+    <form id="loginForm">
+      <div class="form-group">
+        <label for="email_or_username">Email or Username:</label>
+        <input type="text" id="email_or_username" placeholder="Enter email or username" required>
+      </div>
+
+      <div class="form-group">
+        <label for="password">Password:</label>
+        <input type="password" id="password" placeholder="Enter your password" required>
+      </div>
+
+      <button type="submit" id="loginBtn">Login</button>
+    </form>
+
+    <div id="message"></div>
+
+    <div class="register-link">
+      Don't have an account? <a href="register.html">Register here</a>
+    </div>
+  </div>
+
+  <script>
+    document.getElementById('loginForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      // Get form values
+      const email_or_username = document.getElementById('email_or_username').value;
+      const password = document.getElementById('password').value;
+
+      // Disable button and show loading state
+      const loginBtn = document.getElementById('loginBtn');
+      const originalText = loginBtn.textContent;
+      loginBtn.textContent = 'Logging in...';
+      loginBtn.disabled = true;
+
+      try {
+        const response = await fetch('/auth/login', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            email_or_username,
+            password
+          })
+        });
+
+        const result = await response.json();
+
+        const messageDiv = document.getElementById('message');
+
+        if (result.success) {
+          messageDiv.innerHTML = '<div class="message success">Login successful! Redirecting...</div>';
+
+          // Store the token and user info in localStorage
+          localStorage.setItem('authToken', JSON.stringify(result.user));
+
+          // Redirect to main application after a short delay
+          setTimeout(() => {
+            window.location.href = 'index.html';
+          }, 1000);
+        } else {
+          messageDiv.innerHTML = '<div class="message error">' + result.message + '</div>';
+        }
+      } catch (error) {
+        const messageDiv = document.getElementById('message');
+        messageDiv.innerHTML = '<div class="message error">An error occurred. Please try again.</div>';
+        console.error('Login error:', error);
+      } finally {
+        // Re-enable button
+        loginBtn.textContent = originalText;
+        loginBtn.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>
+```
+
+**Using Authentication with Existing API Endpoints:**
+After successful login, you can use the authentication token to access user-specific data from the existing API endpoints:
+
+```javascript
+// Function to get the auth token from localStorage
+function getAuthToken() {
+  const tokenData = localStorage.getItem('authToken');
+  if (tokenData) {
+    const parsed = JSON.parse(tokenData);
+    return parsed.token || parsed.access_token; // Different auth systems may use different property names
+  }
+  return null;
+}
+
+// Example: Fetching user-specific tasks
+async function getUserTasks() {
+  const token = getAuthToken();
+
+  if (!token) {
+    console.error('User not authenticated');
+    return;
+  }
+
+  try {
+    const response = await fetch('/api/tasks', {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    const data = await response.json();
+    console.log('User tasks:', data);
+  } catch (error) {
+    console.error('Error fetching tasks:', error);
+  }
+}
+
+// Example: Creating a task for the authenticated user
+async function createTask(title, description) {
+  const token = getAuthToken();
+
+  if (!token) {
+    console.error('User not authenticated');
+    return;
+  }
+
+  try {
+    const response = await fetch('/api/tasks', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        title: title,
+        description: description
+      })
+    });
+
+    const data = await response.json();
+    console.log('Created task:', data);
+  } catch (error) {
+    console.error('Error creating task:', error);
+  }
+}
+```
+
+**Protecting Pages Based on Authentication:**
+You can also protect certain pages by checking for authentication:
+
+```javascript
+// Check if user is authenticated before accessing protected pages
+function checkAuth() {
+  const token = getAuthToken();
+
+  if (!token) {
+    // Redirect to login if not authenticated
+    window.location.href = 'login.html';
+  }
+
+  return !!token;
+}
+
+// Call this function on protected pages
+window.onload = function() {
+  checkAuth();
+};
+```
+
+**Logout Functionality:**
+To log out, you can clear the stored token and redirect the user:
+
+```javascript
+function logout() {
+  // Clear the stored token
+  localStorage.removeItem('authToken');
+
+  // Redirect to login page
+  window.location.href = 'login.html';
+}
+
+// Add event listener to logout button
+document.getElementById('logoutBtn').addEventListener('click', logout);
+```
 <form id="loginForm">
   <input type="text" id="email_or_username" placeholder="Email or Username" required>
   <input type="password" id="password" placeholder="Password" required>
