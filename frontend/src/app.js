@@ -1,6 +1,10 @@
 // Small frontend module to manage tasks and sessions
+// Configure the backend API URL - defaults to current domain but can be overridden
+// For GitHub Pages deployment, you can set window.BACKEND_API_URL before loading app.js
+const BACKEND_API_URL = (window.BACKEND_API_URL || '').replace(/\/$/, ''); // Remove trailing slash if present
+
 async function api(path, opts = {}){
-  const res = await fetch(path, opts);
+  const res = await fetch(BACKEND_API_URL + path, opts);
   if (!res.ok) throw new Error(await res.text());
   return res.json();
 }
