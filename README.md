@@ -86,6 +86,150 @@ The authentication system uses the following table structure:
 - Existing data can be migrated to user-specific records
 - Backward compatibility maintained for current functionality
 
+## 📝 Accessing Authentication Pages
+
+### Register Page
+To access the register functionality, you can:
+
+1. **Create a register HTML page** that makes a POST request to `/auth/register` with the following fields:
+   - `email`: User's email address
+   - `nama_lengkap`: Full name
+   - `alamat`: Address
+   - `username`: Desired username
+   - `password`: Secure password (at least 8 characters with uppercase, lowercase, and number)
+
+2. **API Endpoint**: `POST /auth/register`
+   - Example request:
+   ```javascript
+   fetch('/auth/register', {
+     method: 'POST',
+     headers: {
+       'Content-Type': 'application/json',
+     },
+     body: JSON.stringify({
+       email: 'user@example.com',
+       nama_lengkap: 'Full Name',
+       alamat: 'Address',
+       username: 'username',
+       password: 'SecurePassword123'
+     })
+   })
+   ```
+
+### Login Page
+To access the login functionality:
+
+1. **Create a login HTML page** that makes a POST request to `/auth/login` with:
+   - `email_or_username`: User's email or username
+   - `password`: User's password
+
+2. **API Endpoint**: `POST /auth/login`
+   - Example request:
+   ```javascript
+   fetch('/auth/login', {
+     method: 'POST',
+     headers: {
+       'Content-Type': 'application/json',
+     },
+     body: JSON.stringify({
+       email_or_username: 'user@example.com', // or username
+       password: 'SecurePassword123'
+     })
+   })
+   ```
+
+### Using Authentication in Frontend
+After successful login, you'll receive a JWT token that should be included in the Authorization header for protected API calls:
+
+```javascript
+// After login, store the token
+const token = response.user.token; // This would come from your login response
+
+// For subsequent API calls, include the token
+fetch('/api/tasks', {
+  headers: {
+    'Authorization': `Bearer ${token}`,
+    'Content-Type': 'application/json'
+  }
+});
+```
+
+### Frontend Integration Example
+You can create simple HTML forms for register and login:
+
+**Register Form Example:**
+```html
+<form id="registerForm">
+  <input type="email" id="email" placeholder="Email" required>
+  <input type="text" id="nama_lengkap" placeholder="Full Name" required>
+  <input type="text" id="alamat" placeholder="Address">
+  <input type="text" id="username" placeholder="Username" required>
+  <input type="password" id="password" placeholder="Password" required>
+  <button type="submit">Register</button>
+</form>
+
+<script>
+document.getElementById('registerForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+
+  const formData = {
+    email: document.getElementById('email').value,
+    nama_lengkap: document.getElementById('nama_lengkap').value,
+    alamat: document.getElementById('alamat').value,
+    username: document.getElementById('username').value,
+    password: document.getElementById('password').value
+  };
+
+  const response = await fetch('/auth/register', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(formData)
+  });
+
+  const result = await response.json();
+  console.log(result);
+});
+</script>
+```
+
+**Login Form Example:**
+```html
+<form id="loginForm">
+  <input type="text" id="email_or_username" placeholder="Email or Username" required>
+  <input type="password" id="password" placeholder="Password" required>
+  <button type="submit">Login</button>
+</form>
+
+<script>
+document.getElementById('loginForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+
+  const formData = {
+    email_or_username: document.getElementById('email_or_username').value,
+    password: document.getElementById('password').value
+  };
+
+  const response = await fetch('/auth/login', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(formData)
+  });
+
+  const result = await response.json();
+  console.log(result);
+
+  // Store token for future API calls if login is successful
+  if (result.success) {
+    localStorage.setItem('authToken', result.user.token);
+  }
+});
+</script>
+```
+
 ## 🛠️ Tech Stack
 
 - **Backend**: Node.js + Express.js
