@@ -42,7 +42,7 @@ jobs:
         # Create a temporary HTML file with the backend API configuration
         BACKEND_URL="${{ secrets.BACKEND_API_URL }}"
         if [ -z "$BACKEND_URL" ]; then
-          BACKEND_URL="https://your-backend-domain.onrender.com"  # Default placeholder
+          BACKEND_URL="https://your-vercel-project-url.vercel.app"  # Default placeholder - replace with your actual Vercel URL
         fi
 
         # Insert the script tag before the app.js script tag to configure the backend API

@@ -90,6 +90,62 @@ https://aspsptyd.github.io/tracker-task/
 
 Note: The frontend needs to connect to a backend server to function properly. See the backend configuration section below.
 
+## ☁️ Deploying Backend to Vercel
+
+This application can be deployed to Vercel for the backend API services. Here's how to deploy:
+
+### Prerequisites
+- A Vercel account (sign up at [vercel.com](https://vercel.com))
+- The Vercel CLI installed (`npm i -g vercel`)
+- Or deploy directly from the Vercel dashboard
+
+### Deployment Steps
+
+1. **Install Vercel CLI** (if deploying from terminal):
+   ```bash
+   npm i -g vercel
+   ```
+
+2. **Navigate to the backend directory**:
+   ```bash
+   cd backend
+   ```
+
+3. **Deploy to Vercel**:
+   ```bash
+   vercel
+   ```
+
+   Follow the prompts to link your project to your Vercel account.
+
+4. **Set Environment Variables** in the Vercel dashboard or during deployment:
+   - `NEXT_PUBLIC_SUPABASE_URL`: Your Supabase project URL
+   - `NEXT_PUBLIC_SUPABASE_ANON_KEY`: Your Supabase anon key
+   - `SUPABASE_SERVICE_ROLE_KEY`: Your Supabase service role key
+
+5. **Configure the deployment settings**:
+   - Framework: None/Other (since we're using a custom Express setup)
+   - Root directory: `/backend`
+
+### Alternative: Deploy via Vercel Dashboard
+
+1. Go to [vercel.com](https://vercel.com)
+2. Click "New Project"
+3. Import your repository (or connect to GitHub)
+4. Select the `backend` directory as the root
+5. Set the build command to `npm install`
+6. Set the output directory to `.` (current directory)
+7. Add the required environment variables in the Settings → Environment Variables section
+
+### Using the Deployed Backend
+
+Once deployed, your backend will be accessible at:
+```
+https://your-project-name.vercel.app
+```
+
+Update your GitHub Pages deployment to use the new backend URL by setting the `BACKEND_API_URL` secret in your GitHub repository settings to your Vercel deployment URL.
+
 ## 🚀 Local Installation & Setup
 
 ### 1. Clone and Install Dependencies
@@ -583,3 +639,48 @@ Then create a `package.json` with test scripts if one doesn't exist:
 ## 🔄 Database Migration
 
 For a detailed migration plan from MySQL to Supabase, see [docs/instruction-plan-migration-to-supabase.md](docs/instruction-plan-migration-to-supabase.md).
+
+## ☁️ Vercel Deployment
+
+The application has been successfully deployed to Vercel. Here's the current deployment status:
+
+### Deployment Information
+- **Production URL**: https://tracker-task-taupe.vercel.app
+- **Status**: Fully operational with proper styling and Supabase connectivity
+- **Last Updated**: January 10, 2026
+
+### Deployment Configuration
+The application is configured for deployment with the following settings:
+- Static files (CSS, JS, HTML) are properly served
+- API routes are accessible at `/api/*`
+- Supabase database connection is active
+- CORS headers are configured for cross-origin requests
+
+### Known Issues & Solutions
+- **Issue**: Previously, CSS and JavaScript files were not loading correctly due to routing conflicts in the Vercel serverless environment
+- **Solution**: Added specific routes for static files to ensure proper content type delivery
+
+### Redeployment Instructions
+To redeploy the application after making changes:
+
+1. **Navigate to the backend directory**:
+   ```bash
+   cd backend
+   ```
+
+2. **Deploy to Vercel**:
+   ```bash
+   vercel --prod
+   ```
+
+3. **Verify the deployment** by checking that:
+   - The homepage loads correctly
+   - CSS styling is applied properly
+   - API endpoints return data
+   - Supabase connection is active
+
+### Troubleshooting
+If styling is not appearing after deployment:
+1. Check that static file routes are properly configured
+2. Verify that CSS and JS files return with correct content types (`text/css` and `application/javascript`)
+3. Ensure the catch-all route doesn't interfere with static file serving
