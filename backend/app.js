@@ -1,9 +1,88 @@
+// Authentication functions
+function getAuthToken() {
+  const tokenData = localStorage.getItem('authToken');
+  if (tokenData) {
+    const parsed = JSON.parse(tokenData);
+    return parsed.token || parsed.access_token || parsed.id_token;
+  }
+  return null;
+}
+
+function isLoggedIn() {
+  return !!getAuthToken();
+}
+
+function getUserInfo() {
+  const tokenData = localStorage.getItem('authToken');
+  if (tokenData) {
+    try {
+      const parsed = JSON.parse(tokenData);
+      return parsed.user || parsed;
+    } catch (e) {
+      console.error('Error parsing user info:', e);
+      return null;
+    }
+  }
+  return null;
+}
+
+function logout() {
+  localStorage.removeItem('authToken');
+  updateAuthUI();
+  // Reload the page to reset the app state
+  window.location.reload();
+}
+
+function updateAuthUI() {
+  const authControls = document.getElementById('authControls');
+  const userMenu = document.getElementById('userMenu');
+  const userName = document.getElementById('userName');
+
+  if (isLoggedIn()) {
+    // Show user menu
+    authControls.style.display = 'none';
+    userMenu.style.display = 'flex';
+
+    const userInfo = getUserInfo();
+    if (userInfo && userInfo.nama_lengkap) {
+      userName.textContent = userInfo.nama_lengkap;
+    } else if (userInfo && userInfo.username) {
+      userName.textContent = userInfo.username;
+    } else if (userInfo && userInfo.email) {
+      userName.textContent = userInfo.email;
+    }
+  } else {
+    // Show auth controls
+    authControls.style.display = 'flex';
+    userMenu.style.display = 'none';
+  }
+}
+
+// Add logout button event listener when DOM is loaded
+document.addEventListener('DOMContentLoaded', () => {
+  const logoutBtn = document.getElementById('logoutBtn');
+  if (logoutBtn) {
+    logoutBtn.addEventListener('click', logout);
+  }
+
+  updateAuthUI();
+});
+
 // Small frontend module to manage tasks and sessions
 // Configure the backend API URL - defaults to current domain but can be overridden
 // For GitHub Pages deployment, you can set window.BACKEND_API_URL before loading app.js
 const BACKEND_API_URL = (window.BACKEND_API_URL || '').replace(/\/$/, ''); // Remove trailing slash if present
 
 async function api(path, opts = {}){
+  // Add authorization header if user is logged in
+  const token = getAuthToken();
+  if (token) {
+    opts.headers = {
+      ...opts.headers,
+      'Authorization': `Bearer ${token}`
+    };
+  }
+
   const res = await fetch(BACKEND_API_URL + path, opts);
   if (!res.ok) throw new Error(await res.text());
   return res.json();
@@ -600,4 +679,9 @@ document.getElementById('keteranganForm').addEventListener('submit', async (e) =
 
 document.getElementById('cancelKeterangan').addEventListener('click', () => {
   document.getElementById('keteranganDlg').close();
+});
+
+// Initialize authentication UI when the page loads
+document.addEventListener('DOMContentLoaded', () => {
+  updateAuthUI();
 });
