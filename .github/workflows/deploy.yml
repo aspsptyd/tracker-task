@@ -24,6 +24,12 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
+    # Update paths in HTML file to be relative
+    - name: Update HTML paths to be relative
+      run: |
+        sed -i "s|href=\"/style.css\"|href=\"./style.css\"|g" frontend/src/index.html
+        sed -i "s|src=\"/app.js\"|src=\"./app.js\"|g" frontend/src/index.html
+
     # Configure the backend API URL for GitHub Pages deployment
     - name: Configure backend API URL
       run: |
@@ -34,7 +40,12 @@ jobs:
         fi
 
         # Insert the script tag before the app.js script tag
-        sed -i "s|<script src=\"/app.js\"></script>|<script>/* Configure backend API for GitHub Pages */ window.BACKEND_API_URL = '\"$BACKEND_URL\"';</script>&|" frontend/src/index.html
+        sed -i "s|<script src=\"./app.js\"></script>|<script>/* Configure backend API for GitHub Pages */ window.BACKEND_API_URL = '\"$BACKEND_URL\"';</script>&|" frontend/src/index.html
+
+    # Copy frontend files to root for proper GitHub Pages serving
+    - name: Copy frontend files to root
+      run: |
+        cp -r frontend/src/* .
 
     - name: Setup Pages
       uses: actions/configure-pages@v4
@@ -42,7 +53,7 @@ jobs:
     - name: Upload to GitHub Pages
       uses: actions/upload-pages-artifact@v3
       with:
-        path: frontend/src
+        path: .
 
     - name: Deploy to GitHub Pages
       id: deployment
@@ -50,5 +61,5 @@ jobs:
       if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
       with:
         github_token: ${{ secrets.GITHUB_TOKEN }}
-        publish_dir: frontend/src
+        publish_dir: .
         publish_branch: gh-pages
