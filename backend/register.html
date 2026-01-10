@@ -159,7 +159,12 @@
         }
       } catch (error) {
         const messageDiv = document.getElementById("message");
-        messageDiv.innerHTML = "<div class=\"message error\">An error occurred. Please try again.</div>";
+        // Check if it's a fetch error (network issue) or JSON parsing error
+        if (error.name === 'TypeError' && error.message.includes('fetch')) {
+          messageDiv.innerHTML = "<div class=\"message error\">Network error. Please check your connection.</div>";
+        } else {
+          messageDiv.innerHTML = "<div class=\"message error\">Registration failed: " + error.message + "</div>";
+        }
         console.error("Registration error:", error);
       } finally {
         // Re-enable button

@@ -36,7 +36,7 @@ async function registerUser(userData) {
     throw new Error('Password must be at least 8 characters with at least one uppercase, one lowercase, and one number');
   }
 
-  // Check if user already exists
+  // Check if user already exists in profiles table
   const { data: existingUserByEmail, error: emailError } = await supabase
     .from('profiles')
     .select('id')
@@ -58,45 +58,55 @@ async function registerUser(userData) {
     throw new Error('Username already taken');
   }
 
-  // Create user with Supabase Auth
-  const { data: authData, error: authError } = await supabase.auth.admin.createUser({
-    email,
-    password,
-    email_confirm: true, // Auto-confirm email for simplicity in this implementation
-  });
+  // For Supabase Auth signup, we need to use the client-side auth method
+  // But since this is server-side, we'll use the auth admin API if available
+  // If that doesn't work, we'll need to handle it differently
+  try {
+    // Create user with Supabase Auth using admin API
+    const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+      email,
+      password,
+      email_confirm: true, // Auto-confirm email
+    });
 
-  if (authError) {
-    throw new Error(`Auth error: ${authError.message}`);
-  }
+    if (authError) {
+      throw new Error(`Auth error: ${authError.message}`);
+    }
 
-  const userId = authData.user.id;
+    const userId = authData.user.id;
 
-  // Insert profile data
-  const { error: profileError } = await supabase
-    .from('profiles')
-    .insert([{
+    // Insert profile data
+    const { error: profileError } = await supabase
+      .from('profiles')
+      .insert([{
+        id: userId,
+        email,
+        nama_lengkap,
+        alamat,
+        username,
+      }]);
+
+    if (profileError) {
+      // Clean up the auth user if profile creation fails
+      await supabase.auth.admin.deleteUser(userId);
+      throw new Error(`Profile creation error: ${profileError.message}`);
+    }
+
+    // Return user data without sensitive information
+    return {
       id: userId,
       email,
       nama_lengkap,
       alamat,
       username,
-    }]);
-
-  if (profileError) {
-    // Clean up the auth user if profile creation fails
-    await supabase.auth.admin.deleteUser(userId);
-    throw new Error(`Profile creation error: ${profileError.message}`);
+      created_at: new Date().toISOString(),
+    };
+  } catch (error) {
+    // If admin API fails, try alternative approach
+    // This might happen if admin API is disabled
+    console.error('Admin API registration failed:', error);
+    throw new Error(`Registration failed: ${error.message}`);
   }
-
-  // Return user data without sensitive information
-  return {
-    id: userId,
-    email,
-    nama_lengkap,
-    alamat,
-    username,
-    created_at: new Date().toISOString(),
-  };
 }
 
 // Login user

@@ -14,15 +14,16 @@ router.post('/register', async (req, res) => {
   try {
     const userData = req.body;
     const user = await registerUser(userData);
-    res.status(201).json({ 
-      success: true, 
-      message: 'User registered successfully', 
-      user 
+    res.status(201).json({
+      success: true,
+      message: 'User registered successfully',
+      user
     });
   } catch (error) {
-    res.status(400).json({ 
-      success: false, 
-      message: error.message 
+    console.error('Registration error:', error); // Log the full error for debugging
+    res.status(400).json({
+      success: false,
+      message: error.message
     });
   }
 });
@@ -32,15 +33,16 @@ router.post('/login', async (req, res) => {
   try {
     const credentials = req.body;
     const user = await loginUser(credentials);
-    res.status(200).json({ 
-      success: true, 
-      message: 'Login successful', 
-      user 
+    res.status(200).json({
+      success: true,
+      message: 'Login successful',
+      user
     });
   } catch (error) {
-    res.status(400).json({ 
-      success: false, 
-      message: error.message 
+    console.error('Login error:', error); // Log the full error for debugging
+    res.status(400).json({
+      success: false,
+      message: error.message
     });
   }
 });
