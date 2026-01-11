@@ -84,65 +84,150 @@ app.get('/api/stats', authenticateUser, async (req, res) => {
   }
 
   try {
-    // Build query based on whether user is authenticated
-    let query = supabase
-      .from('task_sessions')
-      .select(`
-        count:task_id,
-        total_duration:sum(duration)
-      `)
-      .join('tasks', 'task_sessions.task_id', 'tasks.id');
-
-    // Add user filter if authenticated
-    if (req.userId) {
-      query = query.eq('tasks.user_id', req.userId);
-    }
-
-    // 1. Total Task Today
+    // 1. Total Task Today - Calculate total accumulated time across ALL tasks for today
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
     const todayEnd = new Date();
     todayEnd.setHours(23, 59, 59, 999);
 
-    const { data: todayTasks, error: todayTasksError } = await query
-      .gte('task_sessions.start_time', todayStart.toISOString())
-      .lte('task_sessions.start_time', todayEnd.toISOString());
-
-    if (todayTasksError) throw todayTasksError;
-
-    // Build week query similarly
-    let weekQuery = supabase
+    // Query for task sessions that occurred today by the current user
+    let todayQuery = supabase
       .from('task_sessions')
-      .select('count:task_id')
-      .join('tasks', 'task_sessions.task_id', 'tasks.id');
+      .select('task_id, duration, start_time')
+      .gte('start_time', todayStart.toISOString())
+      .lt('start_time', todayEnd.toISOString());
+
+    const { data: todaySessions, error: todaySessionsError } = await todayQuery;
+
+    if (todaySessionsError) {
+      console.error('Error fetching today sessions:', todaySessionsError);
+      return res.status(500).json({ error: 'Failed to fetch today sessions' });
+    }
+
+    // Filter by user if authenticated
+    let filteredTodaySessions = todaySessions || [];
+
+    if (req.userId && filteredTodaySessions.length > 0) {
+      // If user is authenticated, we need to join with tasks to filter by user
+      // Get the task_ids from today's sessions
+      const taskIds = [...new Set(filteredTodaySessions.map(session => session.task_id))].filter(id => id !== undefined);
+
+      if (taskIds.length > 0) {
+        // Get tasks that belong to the current user
+        const { data: userTasks, error: userTasksError } = await supabase
+          .from('tasks')
+          .select('id')
+          .in('id', taskIds)
+          .eq('user_id', req.userId);
+
+        if (userTasksError) {
+          console.error('Error fetching user tasks:', userTasksError);
+          return res.status(500).json({ error: 'Failed to fetch user tasks' });
+        }
+
+        // Filter sessions to only include those belonging to user's tasks
+        const userTaskIds = userTasks ? userTasks.map(task => task.id) : [];
+        filteredTodaySessions = filteredTodaySessions.filter(session => userTaskIds.includes(session.task_id));
+      } else {
+        filteredTodaySessions = []; // No task IDs to check
+      }
+    }
+
+    // Calculate total accumulated time for all tasks worked on today
+    let todayTotalDuration = 0;
+    if (filteredTodaySessions && filteredTodaySessions.length > 0) {
+      todayTotalDuration = filteredTodaySessions.reduce((sum, session) => sum + (session.duration || 0), 0);
+    }
+
+    // Also calculate total accumulated time across ALL tasks (not just today's)
+    let allTasksQuery = supabase
+      .from('task_sessions')
+      .select('duration');
 
     // Add user filter if authenticated
     if (req.userId) {
-      weekQuery = weekQuery.eq('tasks.user_id', req.userId);
+      allTasksQuery = allTasksQuery.eq('user_id', req.userId);
     }
 
-    // 3. Total Task in Week
+    const { data: allTaskSessions, error: allTasksError } = await allTasksQuery;
+
+    if (allTasksError) {
+      console.error('Error fetching all task sessions:', allTasksError);
+      return res.status(500).json({ error: 'Failed to fetch all task sessions' });
+    }
+
+    let totalAccumulatedTime = 0;
+    if (allTaskSessions && allTaskSessions.length > 0) {
+      totalAccumulatedTime = allTaskSessions.reduce((sum, session) => sum + (session.duration || 0), 0);
+    }
+
+    // 2. Total Task in Week
     const weekStart = new Date();
     weekStart.setDate(weekStart.getDate() - weekStart.getDay()); // Sunday
     weekStart.setHours(0, 0, 0, 0);
 
-    const { data: weekTasks, error: weekTasksError } = await weekQuery
-      .gte('task_sessions.start_time', weekStart.toISOString());
+    // Query for task sessions that occurred this week by the current user
+    let weekQuery = supabase
+      .from('task_sessions')
+      .select('task_id, start_time')
+      .gte('start_time', weekStart.toISOString());
 
-    if (weekTasksError) throw weekTasksError;
+    const { data: weekSessions, error: weekSessionsError } = await weekQuery;
+
+    if (weekSessionsError) {
+      console.error('Error fetching week sessions:', weekSessionsError);
+      return res.status(500).json({ error: 'Failed to fetch week sessions' });
+    }
+
+    // Filter by user if authenticated
+    let filteredWeekSessions = weekSessions || [];
+
+    if (req.userId && filteredWeekSessions.length > 0) {
+      // Get the task_ids from week's sessions
+      const taskIds = [...new Set(filteredWeekSessions.map(session => session.task_id))].filter(id => id !== undefined);
+
+      if (taskIds.length > 0) {
+        // Get tasks that belong to the current user
+        const { data: userTasks, error: userTasksError } = await supabase
+          .from('tasks')
+          .select('id')
+          .in('id', taskIds)
+          .eq('user_id', req.userId);
+
+        if (userTasksError) {
+          console.error('Error fetching user tasks for week:', userTasksError);
+          return res.status(500).json({ error: 'Failed to fetch user tasks for week' });
+        }
+
+        // Filter sessions to only include those belonging to user's tasks
+        const userTaskIds = userTasks ? userTasks.map(task => task.id) : [];
+        filteredWeekSessions = filteredWeekSessions.filter(session => userTaskIds.includes(session.task_id));
+      } else {
+        filteredWeekSessions = []; // No task IDs to check
+      }
+    }
+
+    // Count unique tasks that had sessions worked on this week
+    let weekCount = 0;
+    if (filteredWeekSessions && filteredWeekSessions.length > 0) {
+      const uniqueWeekTaskIds = [...new Set(filteredWeekSessions.map(session => session.task_id))].filter(id => id !== undefined);
+      weekCount = uniqueWeekTaskIds.length;
+    }
 
     res.json({
       today: {
-        count: todayTasks[0]?.count || 0,
-        duration: parseInt(todayTasks[0]?.total_duration || 0),
-        duration_readable: secondsToString(parseInt(todayTasks[0]?.total_duration || 0))
+        count: filteredTodaySessions ? filteredTodaySessions.length : 0, // Number of sessions today
+        duration: todayTotalDuration,
+        duration_readable: secondsToString(todayTotalDuration),
+        total_accumulated: totalAccumulatedTime, // Total time across all tasks
+        total_accumulated_readable: secondsToString(totalAccumulatedTime)
       },
       week: {
-        count: weekTasks[0]?.count || 0
+        count: weekCount
       }
     });
   } catch (err) {
-    console.error(err);
+    console.error('Error in /api/stats:', err);
     res.status(500).json({ error: 'Failed to fetch stats' });
   }
 });

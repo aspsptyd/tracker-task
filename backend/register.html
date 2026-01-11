@@ -46,6 +46,18 @@
     button:hover {
       background-color: #0056b3;
     }
+    .btn-secondary {
+      background-color: #6c757d !important;
+    }
+    .btn-secondary:hover {
+      background-color: #5a6268 !important;
+    }
+    .btn-danger {
+      background-color: #dc3545 !important;
+    }
+    .btn-danger:hover {
+      background-color: #c82333 !important;
+    }
     .message {
       margin-top: 15px;
       padding: 10px;
@@ -74,44 +86,119 @@
 </head>
 <body>
   <div class="form-container">
-    <h2>Create Account</h2>
-    <form id="registerForm">
-      <div class="form-group">
-        <label for="email">Email:</label>
-        <input type="email" id="email" placeholder="Enter your email" required>
+    <div id="authControls">
+      <h2>Create Account</h2>
+      <form id="registerForm">
+        <div class="form-group">
+          <label for="email">Email:</label>
+          <input type="email" id="email" placeholder="Enter your email" required>
+        </div>
+
+        <div class="form-group">
+          <label for="nama_lengkap">Full Name:</label>
+          <input type="text" id="nama_lengkap" placeholder="Enter your full name" required>
+        </div>
+
+        <div class="form-group">
+          <label for="alamat">Address:</label>
+          <input type="text" id="alamat" placeholder="Enter your address">
+        </div>
+
+        <div class="form-group">
+          <label for="username">Username:</label>
+          <input type="text" id="username" placeholder="Choose a username" required>
+        </div>
+
+        <div class="form-group">
+          <label for="password">Password:</label>
+          <input type="password" id="password" placeholder="Create a password" required>
+        </div>
+
+        <button type="submit" id="registerBtn">Register</button>
+      </form>
+
+      <div id="message"></div>
+
+      <div class="login-link">
+        Already have an account? <a href="login.html">Login here</a>
       </div>
-      
-      <div class="form-group">
-        <label for="nama_lengkap">Full Name:</label>
-        <input type="text" id="nama_lengkap" placeholder="Enter your full name" required>
+    </div>
+
+    <div id="userMenu" style="display: none; text-align: center;">
+      <h2>You Are Logged In</h2>
+      <p>Welcome! You are currently logged in.</p>
+      <button id="logoutBtn" class="btn-danger" style="padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; font-size: 16px;">Logout</button>
+      <div class="login-link" style="margin-top: 20px;">
+        <a href="index.html">Go to Dashboard</a> | <a href="login.html">Login Page</a>
       </div>
-      
-      <div class="form-group">
-        <label for="alamat">Address:</label>
-        <input type="text" id="alamat" placeholder="Enter your address">
-      </div>
-      
-      <div class="form-group">
-        <label for="username">Username:</label>
-        <input type="text" id="username" placeholder="Choose a username" required>
-      </div>
-      
-      <div class="form-group">
-        <label for="password">Password:</label>
-        <input type="password" id="password" placeholder="Create a password" required>
-      </div>
-      
-      <button type="submit" id="registerBtn">Register</button>
-    </form>
-    
-    <div id="message"></div>
-    
-    <div class="login-link">
-      Already have an account? <a href="login.html">Login here</a>
     </div>
   </div>
 
   <script>
+    // Authentication functions
+    function getAuthToken() {
+      const tokenData = localStorage.getItem('authToken');
+      if (tokenData) {
+        const parsed = JSON.parse(tokenData);
+        return parsed.token || parsed.access_token || parsed.id_token;
+      }
+      return null;
+    }
+
+    function isLoggedIn() {
+      return !!getAuthToken();
+    }
+
+    async function logout() {
+      try {
+        // Call the backend logout endpoint
+        await fetch('/auth/logout', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${getAuthToken()}`
+          }
+        });
+      } catch (error) {
+        console.error('Logout API error:', error);
+        // Continue with local logout even if API call fails
+      } finally {
+        // Remove token from localStorage
+        localStorage.removeItem('authToken');
+        // Update UI to show login/register forms
+        updateAuthUI();
+        // Optionally redirect to login page after logout
+        setTimeout(() => {
+          window.location.href = 'login.html';
+        }, 500); // Small delay to allow UI update
+      }
+    }
+
+    function updateAuthUI() {
+      const authControls = document.getElementById('authControls');
+      const userMenu = document.getElementById('userMenu');
+
+      if (isLoggedIn()) {
+        // Show user menu with logout button
+        authControls.style.display = 'none';
+        userMenu.style.display = 'block';
+      } else {
+        // Show auth controls (register form)
+        authControls.style.display = 'block';
+        userMenu.style.display = 'none';
+      }
+    }
+
+    // Check authentication status when page loads
+    document.addEventListener('DOMContentLoaded', () => {
+      updateAuthUI();
+
+      const logoutBtn = document.getElementById('logoutBtn');
+      if (logoutBtn) {
+        logoutBtn.addEventListener('click', logout);
+      }
+    });
+
     document.getElementById("registerForm").addEventListener("submit", async (e) => {
       e.preventDefault();
       
@@ -143,13 +230,42 @@
           })
         });
         
+        // Check if the response is OK before trying to parse JSON
+        if (!response.ok) {
+          // Handle non-OK responses (4xx, 5xx status codes)
+          let errorMessage = "Registration failed with status: " + response.status;
+          try {
+            // Try to parse the response as JSON first
+            const errorResult = await response.json();
+            errorMessage = errorResult.message || errorMessage;
+          } catch (jsonError) {
+            // If JSON parsing fails, try to get the text content
+            try {
+              const errorText = await response.text();
+              // If the response contains HTML (like an error page), show a generic message
+              if (errorText.includes('<!DOCTYPE html') || errorText.includes('<html')) {
+                errorMessage = "Server error occurred. Please contact administrator.";
+              } else {
+                errorMessage = errorText || errorMessage;
+              }
+            } catch (textError) {
+              // If both JSON and text parsing fail, use the status-based message
+              errorMessage = "Registration failed with status: " + response.status;
+            }
+          }
+
+          const messageDiv = document.getElementById("message");
+          messageDiv.innerHTML = "<div class=\"message error\">Registration failed: " + errorMessage + "</div>";
+          return; // Exit early since registration failed
+        }
+
+        // If response is OK, parse the JSON
         const result = await response.json();
-        
         const messageDiv = document.getElementById("message");
-        
+
         if (result.success) {
           messageDiv.innerHTML = "<div class=\"message success\">Registration successful! Redirecting to login...</div>";
-          
+
           // Redirect to login page after a short delay
           setTimeout(() => {
             window.location.href = "login.html";
@@ -159,13 +275,17 @@
         }
       } catch (error) {
         const messageDiv = document.getElementById("message");
-        // Check if it's a fetch error (network issue) or JSON parsing error
+        // Check if it's a network error or JSON parsing error
         if (error.name === 'TypeError' && error.message.includes('fetch')) {
           messageDiv.innerHTML = "<div class=\"message error\">Network error. Please check your connection.</div>";
+        } else if (error instanceof SyntaxError) {
+          // Handle JSON parsing error specifically
+          messageDiv.innerHTML = "<div class=\"message error\">Registration failed: Server returned invalid response format.</div>";
+          console.error("JSON parsing error:", error);
         } else {
           messageDiv.innerHTML = "<div class=\"message error\">Registration failed: " + error.message + "</div>";
+          console.error("Registration error:", error);
         }
-        console.error("Registration error:", error);
       } finally {
         // Re-enable button
         registerBtn.textContent = originalText;

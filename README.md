@@ -1176,9 +1176,17 @@ CREATE TRIGGER update_profiles_updated_at
 ## 🎨 Frontend Features
 
 ### Dashboard
-- **Total Task Today**: Number of tasks completed today and total duration
+- **Total Hari Ini**: Shows the total accumulated time worked today (e.g., "0h 17m 26s") - this is the main focus for daily tracking
+- **Total Keseluruhan**: Shows the total accumulated time across all tasks ever recorded (appears as sub-label)
 - **Task Running**: Count of currently active timers
 - **Total Task in Week**: Number of tasks completed this week
+
+### Recent Enhancement: Time Tracking Clarification
+To address user confusion about time calculations, we've clarified the dashboard display:
+- **Focus Shift**: The main "Total Hari Ini" counter now shows the time worked specifically today (previously showed total accumulated time)
+- **Clearer Labels**: Added "Total Keseluruhan" sub-label to show the grand total across all tasks
+- **Rationale**: This eliminates confusion between daily time tracking and lifetime totals, making daily tracking the primary focus
+- **User Benefit**: Users can now clearly see their daily progress without mixing it up with historical data
 
 ### Session Descriptions (Keterangan)
 - **'+ Keterangan' Button**: Appears next to 'Edit' button in session detail popup

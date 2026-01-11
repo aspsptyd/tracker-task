@@ -2,15 +2,52 @@
 function getAuthToken() {
   const tokenData = localStorage.getItem('authToken');
   if (tokenData) {
-    const parsed = JSON.parse(tokenData);
-    return parsed.token || parsed.access_token || parsed.id_token;
+    try {
+      const parsed = JSON.parse(tokenData);
+      // The token might be stored as a simple string or as part of a user object
+      // First, check if it's a simple token string
+      if (typeof parsed === 'string') {
+        return parsed;
+      }
+      // If it's an object (like the user object returned from login),
+      // look for the access_token property which is the JWT token needed for authorization
+      return parsed.access_token || parsed.token || parsed.id_token || parsed.refresh_token || parsed.id;
+    } catch (e) {
+      // If parsing fails, return the raw value
+      return tokenData;
+    }
   }
   return null;
 }
 
 function isLoggedIn() {
-  return !!getAuthToken();
+  const token = getAuthToken();
+  // A user is considered logged in if there's a token or user object stored
+  return !!token;
 }
+
+// Check if this is the main page and enforce authentication
+function enforceAuthOnMainPage() {
+  // Check if we're on the main index page (not login or register)
+  if (window.location.pathname.endsWith('index.html') || window.location.pathname === '/') {
+    if (!isLoggedIn()) {
+      // Redirect to login page if not authenticated on main page
+      window.location.href = 'login.html';
+    }
+  }
+}
+
+// Enforce authentication when DOM is loaded
+document.addEventListener('DOMContentLoaded', () => {
+  enforceAuthOnMainPage();
+
+  const logoutBtn = document.getElementById('logoutBtn');
+  if (logoutBtn) {
+    logoutBtn.addEventListener('click', logout);
+  }
+
+  updateAuthUI();
+});
 
 function getUserInfo() {
   const tokenData = localStorage.getItem('authToken');
@@ -84,7 +121,18 @@ async function api(path, opts = {}){
   }
 
   const res = await fetch(BACKEND_API_URL + path, opts);
-  if (!res.ok) throw new Error(await res.text());
+  if (!res.ok) {
+    // Attempt to get error message from response body
+    let errorMessage = await res.text();
+    try {
+      // If the response is JSON, parse it to get a more meaningful error message
+      const errorJson = JSON.parse(errorMessage);
+      errorMessage = errorJson.message || errorJson.error || errorMessage;
+    } catch (e) {
+      // If response is not JSON, use the plain text error
+    }
+    throw new Error(errorMessage);
+  }
   return res.json();
 }
 
@@ -111,13 +159,22 @@ function secondsToHuman(sec){
 async function loadStats(){
   try {
     const stats = await api('/api/stats');
-    document.getElementById('statTotalToday').textContent = stats.today.count;
-    document.getElementById('statTotalDuration').textContent = stats.today.duration_readable;
-    document.getElementById('statTotalWeek').textContent = stats.week.count;
-    
+
+    // Check if elements exist before trying to update them
+    const statTotalToday = document.getElementById('statTotalToday');
+    const statTotalDuration = document.getElementById('statTotalDuration');
+    const statTotalWeek = document.getElementById('statTotalWeek');
+    const statTaskRunning = document.getElementById('statTaskRunning');
+
+    // Update Total Task Today to show the time worked today (the main focus)
+    if (statTotalToday) statTotalToday.textContent = stats.today.duration_readable || '0h 0m 0s';
+    // Update the duration field to show total accumulated time across all tasks
+    if (statTotalDuration) statTotalDuration.textContent = `Total keseluruhan: ${stats.today.total_accumulated_readable || '0h 0m 0s'}`;
+    if (statTotalWeek) statTotalWeek.textContent = stats.week.count || 0;
+
     // Task Running is handled by client state
     const running = loadRunningFromStorage();
-    document.getElementById('statTaskRunning').textContent = running ? '1' : '0';
+    if (statTaskRunning) statTaskRunning.textContent = running ? '1' : '0';
   } catch(e) {
     console.error('Failed to load stats', e);
   }

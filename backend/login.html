@@ -128,10 +128,12 @@
         
         if (result.success) {
           messageDiv.innerHTML = "<div class=\"message success\">Login successful! Redirecting...</div>";
-          
-          // Store the token and user info in localStorage
+
+          // Store the user info in localStorage
+          // Note: The actual JWT token is managed by Supabase internally
+          // but we'll store the user object for displaying user info
           localStorage.setItem("authToken", JSON.stringify(result.user));
-          
+
           // Redirect to main application after a short delay
           setTimeout(() => {
             window.location.href = "index.html";
