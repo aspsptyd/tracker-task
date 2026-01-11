@@ -9,9 +9,10 @@ time-tracker/
 ├── backend/                 # Express.js server and database logic
 │   ├── index.js            # Main server file
 │   ├── src/                # Additional server modules
+│   ├── docs/               # Documentation files
+│   │   └── sql/           # SQL database setup files
 │   ├── .env               # Environment variables
 │   ├── package.json       # Backend dependencies
-│   └── *.sql             # Database setup files
 ├── frontend/              # Client-side application
 │   ├── src/               # HTML, CSS, JavaScript files
 │   │   ├── index.html    # Main HTML file
@@ -697,6 +698,16 @@ document.getElementById('loginForm').addEventListener('submit', async (e) => {
 - **Authentication**: Supabase Auth
 - **Frontend**: Vanilla JavaScript, HTML, CSS
 - **Styling**: Custom CSS with dark/light theme support
+
+## 🗂️ File Organization
+
+### SQL Files Location
+Database schema and migration files have been organized into a dedicated directory:
+- `backend/docs/sql/` - Contains all database-related SQL files:
+  - `create_profiles_table.sql` - Creates the user profiles table
+  - `setup_database.sql` - Initial database setup script
+  - `update_schema.sql` - Schema update/migration script
+  - `update_tables_for_auth.sql` - Authentication-related table updates
 
 ## 📋 Prerequisites
 
