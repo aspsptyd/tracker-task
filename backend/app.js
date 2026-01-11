@@ -1,11 +1,138 @@
+// Authentication functions
+function getAuthToken() {
+  const tokenData = localStorage.getItem('authToken');
+  if (tokenData) {
+    try {
+      const parsed = JSON.parse(tokenData);
+      // The token might be stored as a simple string or as part of a user object
+      // First, check if it's a simple token string
+      if (typeof parsed === 'string') {
+        return parsed;
+      }
+      // If it's an object (like the user object returned from login),
+      // look for the access_token property which is the JWT token needed for authorization
+      return parsed.access_token || parsed.token || parsed.id_token || parsed.refresh_token || parsed.id;
+    } catch (e) {
+      // If parsing fails, return the raw value
+      return tokenData;
+    }
+  }
+  return null;
+}
+
+function isLoggedIn() {
+  const token = getAuthToken();
+  // A user is considered logged in if there's a token or user object stored
+  return !!token;
+}
+
+// Check if this is the main page and enforce authentication
+function enforceAuthOnMainPage() {
+  // Check if we're on the main index page (not login or register)
+  if (window.location.pathname.endsWith('index.html') || window.location.pathname === '/') {
+    if (!isLoggedIn()) {
+      // Redirect to login page if not authenticated on main page
+      window.location.href = 'login.html';
+    }
+  }
+}
+
+// Enforce authentication when DOM is loaded
+document.addEventListener('DOMContentLoaded', () => {
+  enforceAuthOnMainPage();
+
+  const logoutBtn = document.getElementById('logoutBtn');
+  if (logoutBtn) {
+    logoutBtn.addEventListener('click', logout);
+  }
+
+  updateAuthUI();
+});
+
+function getUserInfo() {
+  const tokenData = localStorage.getItem('authToken');
+  if (tokenData) {
+    try {
+      const parsed = JSON.parse(tokenData);
+      return parsed.user || parsed;
+    } catch (e) {
+      console.error('Error parsing user info:', e);
+      return null;
+    }
+  }
+  return null;
+}
+
+function logout() {
+  localStorage.removeItem('authToken');
+  updateAuthUI();
+  // Reload the page to reset the app state
+  window.location.reload();
+}
+
+function updateAuthUI() {
+  const authControls = document.getElementById('authControls');
+  const userMenu = document.getElementById('userMenu');
+  const userName = document.getElementById('userName');
+
+  if (isLoggedIn()) {
+    // Show user menu
+    authControls.style.display = 'none';
+    userMenu.style.display = 'flex';
+
+    const userInfo = getUserInfo();
+    if (userInfo && userInfo.nama_lengkap) {
+      userName.textContent = userInfo.nama_lengkap;
+    } else if (userInfo && userInfo.username) {
+      userName.textContent = userInfo.username;
+    } else if (userInfo && userInfo.email) {
+      userName.textContent = userInfo.email;
+    }
+  } else {
+    // Show auth controls
+    authControls.style.display = 'flex';
+    userMenu.style.display = 'none';
+  }
+}
+
+// Add logout button event listener when DOM is loaded
+document.addEventListener('DOMContentLoaded', () => {
+  const logoutBtn = document.getElementById('logoutBtn');
+  if (logoutBtn) {
+    logoutBtn.addEventListener('click', logout);
+  }
+
+  updateAuthUI();
+});
+
 // Small frontend module to manage tasks and sessions
 // Configure the backend API URL - defaults to current domain but can be overridden
 // For GitHub Pages deployment, you can set window.BACKEND_API_URL before loading app.js
 const BACKEND_API_URL = (window.BACKEND_API_URL || '').replace(/\/$/, ''); // Remove trailing slash if present
 
 async function api(path, opts = {}){
+  // Add authorization header if user is logged in
+  const token = getAuthToken();
+  if (token) {
+    opts.headers = {
+      ...opts.headers,
+      'Authorization': `Bearer ${token}`
+    };
+  }
+
   const res = await fetch(BACKEND_API_URL + path, opts);
-  if (!res.ok) throw new Error(await res.text());
+  if (!res.ok) {
+    // Attempt to get error message from response body
+    let errorMessage = await res.text();
+    try {
+      // If the response is JSON, parse it to get a more meaningful error message
+      const errorJson = JSON.parse(errorMessage);
+      errorMessage = errorJson.message || errorJson.error || errorMessage;
+    } catch (e) {
+      // If response is not JSON, use the plain text error
+    }
+    throw new Error(errorMessage);
+  }
   return res.json();
 }
 
@@ -32,13 +159,22 @@ function secondsToHuman(sec){
 async function loadStats(){
   try {
     const stats = await api('/api/stats');
-    document.getElementById('statTotalToday').textContent = stats.today.count;
-    document.getElementById('statTotalDuration').textContent = stats.today.duration_readable;
-    document.getElementById('statTotalWeek').textContent = stats.week.count;
-    
+
+    // Check if elements exist before trying to update them
+    const statTotalToday = document.getElementById('statTotalToday');
+    const statTotalDuration = document.getElementById('statTotalDuration');
+    const statTotalWeek = document.getElementById('statTotalWeek');
+    const statTaskRunning = document.getElementById('statTaskRunning');
+
+    // Update Total Task Today to show the time worked today (the main focus)
+    if (statTotalToday) statTotalToday.textContent = stats.today.duration_readable || '0h 0m 0s';
+    // Update the duration field to show total accumulated time across all tasks
+    if (statTotalDuration) statTotalDuration.textContent = `Total keseluruhan: ${stats.today.total_accumulated_readable || '0h 0m 0s'}`;
+    if (statTotalWeek) statTotalWeek.textContent = stats.week.count || 0;
+
     // Task Running is handled by client state
     const running = loadRunningFromStorage();
-    document.getElementById('statTaskRunning').textContent = running ? '1' : '0';
+    if (statTaskRunning) statTaskRunning.textContent = running ? '1' : '0';
   } catch(e) {
     console.error('Failed to load stats', e);
   }
@@ -600,4 +736,9 @@ document.getElementById('keteranganForm').addEventListener('submit', async (e) =
 
 document.getElementById('cancelKeterangan').addEventListener('click', () => {
   document.getElementById('keteranganDlg').close();
+});
+
+// Initialize authentication UI when the page loads
+document.addEventListener('DOMContentLoaded', () => {
+  updateAuthUI();
 });
