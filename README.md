@@ -709,6 +709,12 @@ Database schema and migration files have been organized into a dedicated directo
   - `update_schema.sql` - Schema update/migration script
   - `update_tables_for_auth.sql` - Authentication-related table updates
 
+### Git Configuration
+The project includes proper .gitignore configuration to exclude unnecessary files:
+- `node_modules/` - Excludes dependency directories from git tracking
+- Development and build artifacts are properly ignored
+- Only source code and essential configuration files are tracked
+
 ## 📋 Prerequisites
 
 - Node.js installed
