@@ -1460,6 +1460,38 @@ Unit tests completed!
 - If a test fails, an error message will show what was expected vs. what was actually returned
 - All tests passing means the `secondsToString` function is working correctly for the tested scenarios
 
+## 🔧 Troubleshooting Common Issues
+
+### Port Already in Use Error
+
+If you encounter the error `listen EADDRINUSE: address already in use ::1:3000`, it means that port 3000 is already being used by another process:
+
+1. **Identify the process using port 3000**:
+   ```bash
+   lsof -i :3000
+   ```
+
+2. **Kill the process using port 3000** (replace PID with the actual process ID):
+   ```bash
+   kill 35438  # Replace 35438 with the actual PID from the lsof command
+   ```
+
+3. **Alternative: Use a different port**:
+   ```bash
+   PORT=3001 npm start
+   ```
+
+4. **On Windows, use**:
+   ```cmd
+   netstat -ano | findstr :3000
+   taskkill /PID <PID> /F
+   ```
+
+This error commonly occurs when:
+- Another instance of the application is already running
+- Another application is using port 3000
+- A previous instance of the application didn't shut down properly
+
 ### Unit Test Example
 
 A unit test example has been created for the `secondsToString` function in the backend. The test file can be found at `backend/test/secondsToString.test.js`.
