@@ -199,6 +199,18 @@ The application includes a comprehensive authentication system:
 
 ## 🎨 Frontend Features
 
+### Session Timeout Management
+- **Countdown Timer**: Shows remaining session time with continuous updates every second
+- **Visual Indicators**: Different colors and animations indicate session status
+  - Normal: White/black text (depending on theme)
+  - Warning (< 10 minutes): Orange/yellow text with bold styling
+  - Critical (< 5 minutes): Red text with pulsing animation
+  - Expired: Red/black text indicating session has expired
+- **Automatic Logout**: User is automatically logged out when session expires
+- **Theme Compatibility**: Colors adjust automatically for light/dark mode
+- **Fallback Mechanism**: Uses login time if JWT expiration data is unavailable
+- **Session Storage**: Tracks login time in localStorage for fallback calculations
+
 ### Dashboard
 - **Total Hari Ini**: Shows the total accumulated time worked today
 - **Total Keseluruhan**: Shows the total accumulated time across all tasks
@@ -231,6 +243,10 @@ The application includes a comprehensive authentication system:
 - **Dashboard Session Display**: Active sessions are prominently displayed on the dashboard with real-time timers
 - **Remaining Time Calculation**: The application calculates and shows how much time remains in active sessions
 - **Session Continuation**: If a session was active when the user logged out, it can be resumed after login
+- **Session Timeout Management**: Displays countdown timer showing remaining session time with visual indicators
+- **Theme-Aware Colors**: Session timer colors adjust automatically based on light/dark theme
+- **Automatic Logout**: User is automatically logged out when session expires for security
+- **Visual Warnings**: Color changes and animations warn users when session is about to expire
 
 ### History Task Section
 - **Date-based Organization**: Tasks are grouped by creation date
@@ -304,6 +320,9 @@ Common causes and solutions:
 - Verify that session data is properly associated with the logged-in user
 - Confirm that session times are accurately calculated and displayed
 - Active sessions will continue to run and show remaining time on the dashboard after login
+- Session timeout countdown appears in the header next to the user's name after login
+- Session automatically expires after 1 hour (or as configured in JWT) with automatic logout
+- Session timer colors adjust based on light/dark theme for optimal visibility
 
 ## 🤝 Contributing
 

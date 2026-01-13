@@ -5,6 +5,13 @@
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <title>⏰ Time Tracker</title>
     <link rel="stylesheet" href="./style.css">
+    <style>
+      @keyframes pulse {
+        0% { opacity: 1; }
+        50% { opacity: 0.6; }
+        100% { opacity: 1; }
+      }
+    </style>
   </head>
   <body>
     <div class="container">
@@ -20,7 +27,8 @@
           </div>
           <button id="refresh">Refresh</button>
           <button id="themeToggle" aria-label="Toggle theme">Toggle Theme</button>
-          <div id="userMenu" style="display: none;">
+          <div id="userMenu" style="display: none; align-items: center; gap: 10px;">
+            <span id="sessionTimer" style="font-size: 14px;"></span>
             <span id="userName"></span>
             <button id="logoutBtn" class="btn-secondary">Logout</button>
           </div>

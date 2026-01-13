@@ -26,6 +26,185 @@ function isLoggedIn() {
   return !!token;
 }
 
+// Session timeout management
+function decodeJWT(token) {
+  try {
+    // Check if token looks like a JWT (has two dots forming three parts)
+    if (!token || typeof token !== 'string' || !token.includes('.')) {
+      console.warn('Token is not in JWT format');
+      return null;
+    }
+
+    // Split the JWT token to get the payload
+    const parts = token.split('.');
+    if (parts.length !== 3) {
+      console.warn('JWT does not have 3 parts');
+      return null;
+    }
+
+    // Decode the payload (second part)
+    // The payload is base64url encoded, so we need to convert it to base64 first
+    let payload = parts[1];
+    // Add padding if needed
+    payload = payload.replace(/-/g, '+').replace(/_/g, '/');
+    while (payload.length % 4) {
+      payload += '=';
+    }
+
+    const decodedPayload = atob(payload);
+    const payloadObj = JSON.parse(decodedPayload);
+    return payloadObj;
+  } catch (e) {
+    console.error('Error decoding JWT:', e);
+    return null;
+  }
+}
+
+function getSessionExpirationTime() {
+  const token = getAuthToken();
+  if (!token) return null;
+
+  const decoded = decodeJWT(token);
+  if (!decoded || !decoded.exp) {
+    // If we can't decode the expiration from the JWT, return null
+    // This means we can't determine the exact expiration time
+    return null;
+  }
+
+  // Convert expiration timestamp to milliseconds
+  return decoded.exp * 1000;
+}
+
+function getRemainingSessionTime() {
+  const expirationTime = getSessionExpirationTime();
+
+  if (!expirationTime) {
+    // If we can't get the expiration time from the JWT, we'll implement a fallback
+    // by storing the login time and assuming a standard session duration
+    const loginTime = localStorage.getItem('loginTime');
+    if (!loginTime) {
+      // If we don't have a login time recorded, we can't calculate remaining time
+      return null;
+    }
+
+    // Assume a 1-hour session duration (3600000 ms) as default
+    const sessionDuration = 60 * 60 * 1000; // 1 hour in milliseconds
+    const loginTimestamp = parseInt(loginTime);
+    const expirationTimeFromLogin = loginTimestamp + sessionDuration;
+    const currentTime = Date.now();
+    const remainingTime = expirationTimeFromLogin - currentTime;
+
+    return Math.max(0, remainingTime);
+  }
+
+  const currentTime = Date.now();
+  const remainingTime = expirationTime - currentTime;
+
+  return Math.max(0, remainingTime);
+}
+
+function formatTime(milliseconds) {
+  if (milliseconds <= 0) return 'Expired';
+
+  const totalSeconds = Math.floor(milliseconds / 1000);
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+
+  if (hours > 0) {
+    return `${hours}h ${minutes}m ${seconds}s`;
+  } else if (minutes > 0) {
+    return `${minutes}m ${seconds}s`;
+  } else {
+    return `${seconds}s`;
+  }
+}
+
+let sessionTimeoutInterval = null;
+
+function startSessionTimeoutChecker() {
+  // Clear any existing interval
+  if (sessionTimeoutInterval) {
+    clearInterval(sessionTimeoutInterval);
+  }
+
+  // Update the session timer immediately
+  updateSessionTimerDisplay();
+
+  // Set up interval to update the timer every second
+  sessionTimeoutInterval = setInterval(() => {
+    updateSessionTimerDisplay();
+  }, 1000);
+}
+
+function updateSessionTimerDisplay() {
+  const remainingTime = getRemainingSessionTime();
+  const sessionTimerElement = document.getElementById('sessionTimer');
+
+  console.log('DEBUG: updateSessionTimerDisplay called', {
+    remainingTime,
+    isLoggedIn: isLoggedIn(),
+    tokenExists: !!getAuthToken(),
+    elementExists: !!sessionTimerElement,
+    elementVisible: sessionTimerElement ? window.getComputedStyle(sessionTimerElement).display : 'N/A'
+  });
+
+  if (sessionTimerElement) {
+    if (remainingTime === null) {
+      sessionTimerElement.textContent = '';
+      sessionTimerElement.style.display = 'none';
+    } else if (remainingTime <= 0) {
+      sessionTimerElement.innerHTML = `🔒 <strong>Session Expired</strong> - Logging out...`;
+      // Adjust color based on theme
+      const isLightTheme = document.body.classList.contains('light');
+      sessionTimerElement.style.color = isLightTheme ? '#000000' : '#ff4444'; // Black in light mode, red in dark mode
+      sessionTimerElement.style.fontWeight = 'bold';
+      sessionTimerElement.style.display = 'inline-block';
+      // Automatically log out when session expires
+      setTimeout(() => {
+        logout();
+      }, 2000); // Wait 2 seconds before logging out to show the message
+    } else {
+      // Format the time with more visual appeal
+      const formattedTime = formatTime(remainingTime);
+      sessionTimerElement.innerHTML = `⏱️ <strong>Expires in:</strong> ${formattedTime}`;
+      // Adjust color based on theme
+      const isLightTheme = document.body.classList.contains('light');
+      sessionTimerElement.style.color = isLightTheme ? '#000000' : '#ffffff'; // Black in light mode, white in dark mode
+      sessionTimerElement.style.display = 'inline-block';
+
+      // Change appearance when session is about to expire (less than 10 minutes)
+      if (remainingTime < 10 * 60 * 1000) {
+        // Adjust warning color based on theme
+        sessionTimerElement.style.color = isLightTheme ? '#cc7700' : '#ff9900'; // Darker orange in light mode
+        sessionTimerElement.style.fontWeight = 'bold';
+
+        // Add pulsing animation when critically low (less than 5 minutes)
+        if (remainingTime < 5 * 60 * 1000) {
+          sessionTimerElement.style.animation = 'pulse 1s infinite';
+          sessionTimerElement.style.color = isLightTheme ? '#cc0000' : '#ff5555'; // Darker red in light mode
+        } else {
+          sessionTimerElement.style.animation = 'none';
+        }
+      } else {
+        sessionTimerElement.style.animation = 'none';
+      }
+    }
+  }
+}
+
+function stopSessionTimeoutChecker() {
+  if (sessionTimeoutInterval) {
+    clearInterval(sessionTimeoutInterval);
+    sessionTimeoutInterval = null;
+  }
+
+  const sessionTimerElement = document.getElementById('sessionTimer');
+  if (sessionTimerElement) {
+    sessionTimerElement.style.display = 'none';
+  }
+}
+
 // Check if this is the main page and enforce authentication
 function enforceAuthOnMainPage() {
   // Check if we're on the main index page (not login or register)
@@ -65,6 +244,9 @@ function getUserInfo() {
 
 function logout() {
   localStorage.removeItem('authToken');
+  localStorage.removeItem('loginTime'); // Also remove login time when logging out
+  // Stop session timeout checker when logging out
+  stopSessionTimeoutChecker();
   updateAuthUI();
   // Reload the page to reset the app state
   window.location.reload();
@@ -76,6 +258,14 @@ function updateAuthUI() {
   const userName = document.getElementById('userName');
 
   if (isLoggedIn()) {
+    // Check if session has expired based on our fallback mechanism
+    const remainingTime = getRemainingSessionTime();
+    if (remainingTime !== null && remainingTime <= 0) {
+      // Session has expired, log out the user
+      logout();
+      return;
+    }
+
     // Show user menu
     authControls.style.display = 'none';
     userMenu.style.display = 'flex';
@@ -88,10 +278,16 @@ function updateAuthUI() {
     } else if (userInfo && userInfo.email) {
       userName.textContent = userInfo.email;
     }
+
+    // Start session timeout checker when user is logged in
+    startSessionTimeoutChecker();
   } else {
     // Show auth controls
     authControls.style.display = 'flex';
     userMenu.style.display = 'none';
+
+    // Stop session timeout checker when user is logged out
+    stopSessionTimeoutChecker();
   }
 }
 
@@ -103,6 +299,11 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   updateAuthUI();
+
+  // Initialize session timeout checker if user is already logged in
+  if (isLoggedIn()) {
+    startSessionTimeoutChecker();
+  }
 });
 
 // Small frontend module to manage tasks and sessions

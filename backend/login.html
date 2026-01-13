@@ -134,6 +134,9 @@
           // but we'll store the user object for displaying user info
           localStorage.setItem("authToken", JSON.stringify(result.user));
 
+          // Store the login time for session timeout tracking
+          localStorage.setItem("loginTime", Date.now().toString());
+
           // Redirect to main application after a short delay
           setTimeout(() => {
             window.location.href = "index.html";
