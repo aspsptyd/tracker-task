@@ -21,6 +21,37 @@ A full-stack time tracking and task management application with user authenticat
 - **Frontend**: Vanilla JavaScript, HTML, CSS
 - **Deployment**: Vercel (Backend), GitHub Pages (Frontend)
 
+## 📦 Modular Architecture
+
+The backend follows a modular architecture with the following structure:
+
+```
+backend/
+├── src/
+│   ├── auth/                 # Authentication module
+│   │   ├── controller.js     # Authentication business logic
+│   │   ├── routes.js         # Authentication API routes
+│   │   └── middleware.js     # Authentication middleware
+│   ├── middleware/           # Shared middleware
+│   │   └── auth.js           # Authentication middleware
+│   ├── tasks/                # Task management module
+│   │   ├── controller.js     # Task business logic
+│   │   ├── statsController.js # Statistics business logic
+│   │   ├── historyController.js # History business logic
+│   │   └── routes.js         # Task API routes
+│   ├── sessions/             # Session management module
+│   │   └── controller.js     # Session business logic
+│   └── utils/                # Utility functions
+│       └── format.js         # Formatting utilities
+├── index.js                  # Main application entry point
+├── app.js                    # Frontend JavaScript
+├── style.css                 # Styling
+├── index.html                # Main HTML
+├── login.html                # Login page
+├── register.html             # Registration page
+└── ...
+```
+
 ## 📋 Prerequisites
 
 - Node.js installed
