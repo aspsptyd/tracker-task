@@ -24,7 +24,9 @@ router.get('/stats', authenticateUser, async (req, res) => {
     const stats = await getStats(req.userId);
     res.json(stats);
   } catch (err) {
-    console.error('Error in /api/stats:', err);
+    if (process.env.NODE_ENV !== 'production') {
+      console.error('Error in /api/stats:', err);
+    }
     res.status(500).json({ error: 'Failed to fetch stats' });
   }
 });
@@ -35,7 +37,9 @@ router.get('/tasks', authenticateUser, async (req, res) => {
     const tasks = await getAllTasks(req.userId);
     res.json(tasks);
   } catch (error) {
-    console.error(error);
+    if (process.env.NODE_ENV !== 'production') {
+      console.error(error);
+    }
     res.status(400).json({ error: error.message });
   }
 });
@@ -46,7 +50,9 @@ router.get('/tasks/:id', authenticateUser, async (req, res) => {
     const taskDetail = await getTaskById(req.params.id, req.userId);
     res.json(taskDetail);
   } catch (error) {
-    console.error(error);
+    if (process.env.NODE_ENV !== 'production') {
+      console.error(error);
+    }
     res.status(404).json({ error: 'not found' });
   }
 });
@@ -57,7 +63,9 @@ router.post('/tasks', authenticateUser, async (req, res) => {
     const task = await createTask(req.body, req.userId);
     res.status(201).json(task);
   } catch (error) {
-    console.error(error);
+    if (process.env.NODE_ENV !== 'production') {
+      console.error(error);
+    }
     res.status(400).json({ error: error.message });
   }
 });
@@ -68,7 +76,9 @@ router.put('/tasks/:id', authenticateUser, async (req, res) => {
     const task = await updateTask(req.params.id, req.body, req.userId);
     res.json(task);
   } catch (error) {
-    console.error(error);
+    if (process.env.NODE_ENV !== 'production') {
+      console.error(error);
+    }
     res.status(400).json({ error: error.message });
   }
 });
@@ -79,7 +89,9 @@ router.delete('/tasks/:id', authenticateUser, async (req, res) => {
     await deleteTask(req.params.id, req.userId);
     res.json({ ok: true });
   } catch (error) {
-    console.error(error);
+    if (process.env.NODE_ENV !== 'production') {
+      console.error(error);
+    }
     res.status(400).json({ error: error.message });
   }
 });
@@ -90,7 +102,9 @@ router.post('/tasks/:id/sessions', authenticateUser, async (req, res) => {
     const result = await createSession(req.params.id, req.body, req.userId);
     res.json(result);
   } catch (error) {
-    console.error(error);
+    if (process.env.NODE_ENV !== 'production') {
+      console.error(error);
+    }
     res.status(400).json({ error: error.message });
   }
 });
@@ -101,7 +115,9 @@ router.put('/tasks/:taskId/sessions/:sessionId', authenticateUser, async (req, r
     const session = await updateSession(req.params.taskId, req.params.sessionId, req.body, req.userId);
     res.json(session);
   } catch (error) {
-    console.error(error);
+    if (process.env.NODE_ENV !== 'production') {
+      console.error(error);
+    }
     res.status(400).json({ error: error.message });
   }
 });
@@ -112,7 +128,9 @@ router.delete('/tasks/:taskId/sessions/:sessionId', authenticateUser, async (req
     await deleteSession(req.params.sessionId, req.userId);
     res.json({ ok: true });
   } catch (error) {
-    console.error(error);
+    if (process.env.NODE_ENV !== 'production') {
+      console.error(error);
+    }
     res.status(400).json({ error: error.message });
   }
 });
@@ -123,7 +141,9 @@ router.get('/history', authenticateUser, async (req, res) => {
     const history = await getHistory(req.userId);
     res.json(history);
   } catch (error) {
-    console.error(error);
+    if (process.env.NODE_ENV !== 'production') {
+      console.error(error);
+    }
     res.status(500).json({ error: 'Failed to fetch history data' });
   }
 });

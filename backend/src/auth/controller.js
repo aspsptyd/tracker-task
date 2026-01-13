@@ -78,7 +78,9 @@ async function registerUser(userData) {
 
       userId = authData.user.id;
     } catch (adminError) {
-      console.error('Admin API registration failed:', adminError);
+      if (process.env.NODE_ENV !== 'production') {
+        console.error('Admin API registration failed:', adminError);
+      }
       // If admin API is not available, we should provide a more specific error
       throw new Error(`Registration failed: ${adminError.message}. Ensure your Supabase SERVICE_ROLE_KEY has admin privileges.`);
     }
@@ -99,7 +101,9 @@ async function registerUser(userData) {
       try {
         await supabaseAdmin.auth.admin.deleteUser(userId);
       } catch (cleanupError) {
-        console.error('Failed to clean up user after profile creation failure:', cleanupError);
+        if (process.env.NODE_ENV !== 'production') {
+          console.error('Failed to clean up user after profile creation failure:', cleanupError);
+        }
       }
       throw new Error(`Profile creation error: ${profileError.message}`);
     }
@@ -114,7 +118,9 @@ async function registerUser(userData) {
       created_at: new Date().toISOString(),
     };
   } catch (error) {
-    console.error('Registration error:', error);
+    if (process.env.NODE_ENV !== 'production') {
+      console.error('Registration error:', error);
+    }
     // Ensure we always throw an error with a message that can be returned to the client
     const errorMessage = error.message || 'Registration failed due to an unknown error';
     throw new Error(errorMessage);

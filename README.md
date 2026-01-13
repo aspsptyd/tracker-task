@@ -14,6 +14,7 @@ A full-stack time tracking and task management application with user authenticat
 - **Dashboard Session Info**: Real-time display of active sessions and remaining time
 - **Dark/Light Theme**: Toggle between themes with persistent preference
 - **Responsive UI**: Clean, modern interface optimized for productivity
+- **Enhanced Security**: Content Security Policy (CSP) and conditional debug output for production environments
 
 ## 🛠️ Tech Stack
 
@@ -22,6 +23,7 @@ A full-stack time tracking and task management application with user authenticat
 - **Authentication**: Supabase Auth
 - **Frontend**: Vanilla JavaScript, HTML, CSS
 - **Deployment**: Vercel (Backend), GitHub Pages (Frontend)
+- **Security**: Content Security Policy (CSP), Conditional Debug Output
 
 ## 📦 Modular Architecture
 
@@ -197,6 +199,21 @@ The application includes a comprehensive authentication system:
 | PUT | `/api/tasks/:id` | Update task (including status) | `{ title, description, status }` |
 | GET | `/api/history` | Get task history organized by completion date | - |
 
+## 🔒 Security Features
+
+### Content Security Policy (CSP)
+- **Script Protection**: Restricts script sources to prevent XSS attacks
+- **Frame Protection**: Controls which sources can be embedded in iframes
+- **Style Protection**: Limits where stylesheets can be loaded from
+- **Connect Protection**: Restricts API endpoint connections
+- **Vercel Integration**: Properly configured to allow Vercel live feedback features
+
+### Conditional Debug Output
+- **Production Safe**: Debug logs are disabled in production environments
+- **Development Friendly**: Full debug information available during development
+- **Information Protection**: Prevents sensitive system information from being exposed
+- **Environment Detection**: Automatically detects NODE_ENV to determine logging level
+
 ## 🎨 Frontend Features
 
 ### Session Timeout Management
@@ -259,6 +276,15 @@ The application includes a comprehensive authentication system:
 ### Prerequisites
 - A Vercel account
 - The Vercel CLI installed (`npm i -g vercel`)
+
+### Security Best Practices for Deployment
+
+When deploying to production, ensure you follow these security practices:
+
+- **Environment Variables**: Never commit sensitive data to version control
+- **Supabase Keys**: Use proper role-based keys (anon for client, service role for server)
+- **Debug Output**: The application automatically disables debug logs in production
+- **CSP Headers**: Content Security Policy is enforced in production environments
 
 ### Deployment Steps
 

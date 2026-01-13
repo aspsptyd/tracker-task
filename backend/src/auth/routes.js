@@ -20,7 +20,9 @@ router.post('/register', async (req, res) => {
       user
     });
   } catch (error) {
-    console.error('Registration error:', error); // Log the full error for debugging
+    if (process.env.NODE_ENV !== 'production') {
+      console.error('Registration error:', error); // Log the full error for debugging
+    }
     res.status(400).json({
       success: false,
       message: error.message
@@ -39,7 +41,9 @@ router.post('/login', async (req, res) => {
       user
     });
   } catch (error) {
-    console.error('Login error:', error); // Log the full error for debugging
+    if (process.env.NODE_ENV !== 'production') {
+      console.error('Login error:', error); // Log the full error for debugging
+    }
     res.status(400).json({
       success: false,
       message: error.message

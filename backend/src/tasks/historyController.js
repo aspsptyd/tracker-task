@@ -7,17 +7,23 @@ const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 let supabase;
 try {
   if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
-    console.error('❌ Missing Supabase configuration!');
-    console.error('Please check your .env file for:');
-    console.error('- NEXT_PUBLIC_SUPABASE_URL');
-    console.error('- SUPABASE_SERVICE_ROLE_KEY');
-    console.error('');
+    if (process.env.NODE_ENV !== 'production') {
+      console.error('❌ Missing Supabase configuration!');
+      console.error('Please check your .env file for:');
+      console.error('- NEXT_PUBLIC_SUPABASE_URL');
+      console.error('- SUPABASE_SERVICE_ROLE_KEY');
+      console.error('');
+    }
   } else {
-    console.log('✅ Supabase configuration loaded');
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('✅ Supabase configuration loaded');
+    }
     supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
   }
 } catch (error) {
-  console.error('❌ Error initializing Supabase client:', error.message);
+  if (process.env.NODE_ENV !== 'production') {
+    console.error('❌ Error initializing Supabase client:', error.message);
+  }
   supabase = null;
 }
 
@@ -135,7 +141,9 @@ async function getHistory(userId = null) {
 
     return historyData;
   } catch (err) {
-    console.error(err);
+    if (process.env.NODE_ENV !== 'production') {
+      console.error(err);
+    }
     throw new Error('Failed to fetch history data');
   }
 }
