@@ -11,6 +11,7 @@ A full-stack time tracking and task management application with user authenticat
 - **Statistics Dashboard**: View daily and weekly statistics including total tasks and duration
 - **History Task Section**: View task completion history organized by creation date
 - **Session Tracking**: Detailed session tracking with timestamps and duration calculation
+- **Dashboard Session Info**: Real-time display of active sessions and remaining time
 - **Dark/Light Theme**: Toggle between themes with persistent preference
 - **Responsive UI**: Clean, modern interface optimized for productivity
 
@@ -203,6 +204,9 @@ The application includes a comprehensive authentication system:
 - **Total Keseluruhan**: Shows the total accumulated time across all tasks
 - **Task Running**: Count of currently active timers
 - **Total Task in Week**: Number of tasks completed this week
+- **Active Session Timer**: Real-time display of currently running sessions with elapsed time
+- **Session Duration**: Shows duration for each completed session
+- **Session Status**: Visual indicators for active vs completed sessions
 
 ### Task Management
 - Create new tasks with title and description
@@ -224,6 +228,9 @@ The application includes a comprehensive authentication system:
 - **Session Editing**: Modify session times or add descriptions (keterangan) to sessions
 - **Session History**: All sessions are stored and accessible even after logout and login
 - **User Isolation**: Sessions are tied to the authenticated user, ensuring privacy
+- **Dashboard Session Display**: Active sessions are prominently displayed on the dashboard with real-time timers
+- **Remaining Time Calculation**: The application calculates and shows how much time remains in active sessions
+- **Session Continuation**: If a session was active when the user logged out, it can be resumed after login
 
 ### History Task Section
 - **Date-based Organization**: Tasks are grouped by creation date
@@ -296,13 +303,14 @@ Common causes and solutions:
 - Check that authorization headers are included in all authenticated API requests
 - Verify that session data is properly associated with the logged-in user
 - Confirm that session times are accurately calculated and displayed
+- Active sessions will continue to run and show remaining time on the dashboard after login
 
 ## 🤝 Contributing
 
 1. Fork the repository
 2. Create a feature branch (`git checkout -b feature/amazing-feature`)
 3. Commit your changes (`git commit -m 'Add some amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
+4. Push to the branch (`git push origin feature.amazing-feature`)
 5. Open a Pull Request
 
 ## 🐛 Known Issues & Future Enhancements
