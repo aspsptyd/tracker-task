@@ -10,6 +10,7 @@ A full-stack time tracking and task management application with user authenticat
 - **User Authentication**: Secure registration and login functionality with user management
 - **Statistics Dashboard**: View daily and weekly statistics including total tasks and duration
 - **History Task Section**: View task completion history organized by creation date
+- **Session Tracking**: Detailed session tracking with timestamps and duration calculation
 - **Dark/Light Theme**: Toggle between themes with persistent preference
 - **Responsive UI**: Clean, modern interface optimized for productivity
 
@@ -163,6 +164,8 @@ The application includes a comprehensive authentication system:
 ### Login
 - Credentials: Accepts email or username with password
 - Session Management: Secure session handling with JWT tokens
+- After successful login, user sessions are maintained via JWT tokens stored in localStorage
+- All subsequent API requests include the authorization header with the JWT token
 
 ### API Endpoints for Authentication
 
@@ -213,6 +216,14 @@ The application includes a comprehensive authentication system:
 - Dynamic button visibility: When a task is running, the "Start" button is hidden and replaced with a "Stop" button
 - Live timer display with real-time updates
 - Session history with start/end times and duration
+
+### Session Management After Login
+- **Session Persistence**: After login, user sessions are maintained via JWT tokens
+- **Session Tracking**: Each task can have multiple time tracking sessions
+- **Session Details**: View detailed information about each session including start time, end time, and duration
+- **Session Editing**: Modify session times or add descriptions (keterangan) to sessions
+- **Session History**: All sessions are stored and accessible even after logout and login
+- **User Isolation**: Sessions are tied to the authenticated user, ensuring privacy
 
 ### History Task Section
 - **Date-based Organization**: Tasks are grouped by creation date
@@ -279,6 +290,12 @@ Common causes and solutions:
 2. Verify your Supabase configuration in `.env` file
 3. Check that the `profiles` table exists in your Supabase database
 4. Look at server console for specific error messages
+
+#### Session Management Issues After Login
+- Ensure JWT tokens are properly stored in localStorage after login
+- Check that authorization headers are included in all authenticated API requests
+- Verify that session data is properly associated with the logged-in user
+- Confirm that session times are accurately calculated and displayed
 
 ## 🤝 Contributing
 
