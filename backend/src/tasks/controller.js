@@ -8,17 +8,23 @@ const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 let supabase;
 try {
   if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
-    console.error('❌ Missing Supabase configuration!');
-    console.error('Please check your .env file for:');
-    console.error('- NEXT_PUBLIC_SUPABASE_URL');
-    console.error('- SUPABASE_SERVICE_ROLE_KEY');
-    console.error('');
+    if (process.env.NODE_ENV !== 'production') {
+      console.error('❌ Missing Supabase configuration!');
+      console.error('Please check your .env file for:');
+      console.error('- NEXT_PUBLIC_SUPABASE_URL');
+      console.error('- SUPABASE_SERVICE_ROLE_KEY');
+      console.error('');
+    }
   } else {
-    console.log('✅ Supabase configuration loaded');
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('✅ Supabase configuration loaded');
+    }
     supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
   }
 } catch (error) {
-  console.error('❌ Error initializing Supabase client:', error.message);
+  if (process.env.NODE_ENV !== 'production') {
+    console.error('❌ Error initializing Supabase client:', error.message);
+  }
   supabase = null;
 }
 
@@ -50,7 +56,9 @@ async function getAllTasks(userId = null) {
   const { data: tasks, error } = await query;
 
   if (error) {
-    console.error(error);
+    if (process.env.NODE_ENV !== 'production') {
+      console.error(error);
+    }
     throw new Error(error.message);
   }
 
@@ -70,7 +78,9 @@ async function getAllTasks(userId = null) {
     const { data: sessions, error: sessionError } = await sessionQuery;
 
     if (sessionError) {
-      console.error(sessionError);
+      if (process.env.NODE_ENV !== 'production') {
+        console.error(sessionError);
+      }
       return { ...task, total_duration: 0, total_duration_readable: secondsToString(0), first_start: null, last_end: null, sessions_count: 0 };
     }
 
@@ -112,7 +122,9 @@ async function getTaskById(id, userId = null) {
   const { data: task, error: taskError } = await taskQuery;
 
   if (taskError) {
-    console.error(taskError);
+    if (process.env.NODE_ENV !== 'production') {
+      console.error(taskError);
+    }
     throw new Error('not found');
   }
 
@@ -131,7 +143,9 @@ async function getTaskById(id, userId = null) {
   const { data: sessions, error: sessionError } = await sessionQuery;
 
   if (sessionError) {
-    console.error(sessionError);
+    if (process.env.NODE_ENV !== 'production') {
+      console.error(sessionError);
+    }
     throw new Error(sessionError.message);
   }
 
@@ -165,7 +179,9 @@ async function createTask(taskData, userId = null) {
     .single();
 
   if (error) {
-    console.error(error);
+    if (process.env.NODE_ENV !== 'production') {
+      console.error(error);
+    }
     throw new Error(error.message);
   }
 
@@ -212,7 +228,9 @@ async function updateTask(id, taskData, userId = null) {
   const { data, error } = await updateQuery;
 
   if (error) {
-    console.error(error);
+    if (process.env.NODE_ENV !== 'production') {
+      console.error(error);
+    }
     throw new Error(error.message);
   }
 
@@ -239,7 +257,9 @@ async function deleteTask(id, userId = null) {
   const { error } = await deleteQuery;
 
   if (error) {
-    console.error(error);
+    if (process.env.NODE_ENV !== 'production') {
+      console.error(error);
+    }
     throw new Error(error.message);
   }
 

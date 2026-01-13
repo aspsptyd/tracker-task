@@ -141,14 +141,6 @@ function updateSessionTimerDisplay() {
   const remainingTime = getRemainingSessionTime();
   const sessionTimerElement = document.getElementById('sessionTimer');
 
-  console.log('DEBUG: updateSessionTimerDisplay called', {
-    remainingTime,
-    isLoggedIn: isLoggedIn(),
-    tokenExists: !!getAuthToken(),
-    elementExists: !!sessionTimerElement,
-    elementVisible: sessionTimerElement ? window.getComputedStyle(sessionTimerElement).display : 'N/A'
-  });
-
   if (sessionTimerElement) {
     if (remainingTime === null) {
       sessionTimerElement.textContent = '';

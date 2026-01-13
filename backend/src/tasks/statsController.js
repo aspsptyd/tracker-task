@@ -8,17 +8,23 @@ const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 let supabase;
 try {
   if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
-    console.error('❌ Missing Supabase configuration!');
-    console.error('Please check your .env file for:');
-    console.error('- NEXT_PUBLIC_SUPABASE_URL');
-    console.error('- SUPABASE_SERVICE_ROLE_KEY');
-    console.error('');
+    if (process.env.NODE_ENV !== 'production') {
+      console.error('❌ Missing Supabase configuration!');
+      console.error('Please check your .env file for:');
+      console.error('- NEXT_PUBLIC_SUPABASE_URL');
+      console.error('- SUPABASE_SERVICE_ROLE_KEY');
+      console.error('');
+    }
   } else {
-    console.log('✅ Supabase configuration loaded');
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('✅ Supabase configuration loaded');
+    }
     supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
   }
 } catch (error) {
-  console.error('❌ Error initializing Supabase client:', error.message);
+  if (process.env.NODE_ENV !== 'production') {
+    console.error('❌ Error initializing Supabase client:', error.message);
+  }
   supabase = null;
 }
 
@@ -45,7 +51,9 @@ async function getStats(userId = null) {
     const { data: todaySessions, error: todaySessionsError } = await todayQuery;
 
     if (todaySessionsError) {
-      console.error('Error fetching today sessions:', todaySessionsError);
+      if (process.env.NODE_ENV !== 'production') {
+        console.error('Error fetching today sessions:', todaySessionsError);
+      }
       throw new Error('Failed to fetch today sessions');
     }
 
@@ -66,7 +74,9 @@ async function getStats(userId = null) {
           .eq('user_id', userId);
 
         if (userTasksError) {
-          console.error('Error fetching user tasks:', userTasksError);
+          if (process.env.NODE_ENV !== 'production') {
+            console.error('Error fetching user tasks:', userTasksError);
+          }
           throw new Error('Failed to fetch user tasks');
         }
 
@@ -97,7 +107,9 @@ async function getStats(userId = null) {
     const { data: allTaskSessions, error: allTasksError } = await allTasksQuery;
 
     if (allTasksError) {
-      console.error('Error fetching all task sessions:', allTasksError);
+      if (process.env.NODE_ENV !== 'production') {
+        console.error('Error fetching all task sessions:', allTasksError);
+      }
       throw new Error('Failed to fetch all task sessions');
     }
 
@@ -120,7 +132,9 @@ async function getStats(userId = null) {
     const { data: weekSessions, error: weekSessionsError } = await weekQuery;
 
     if (weekSessionsError) {
-      console.error('Error fetching week sessions:', weekSessionsError);
+      if (process.env.NODE_ENV !== 'production') {
+        console.error('Error fetching week sessions:', weekSessionsError);
+      }
       throw new Error('Failed to fetch week sessions');
     }
 
@@ -140,7 +154,9 @@ async function getStats(userId = null) {
           .eq('user_id', userId);
 
         if (userTasksError) {
-          console.error('Error fetching user tasks for week:', userTasksError);
+          if (process.env.NODE_ENV !== 'production') {
+            console.error('Error fetching user tasks for week:', userTasksError);
+          }
           throw new Error('Failed to fetch user tasks for week');
         }
 
@@ -172,7 +188,9 @@ async function getStats(userId = null) {
       }
     };
   } catch (err) {
-    console.error('Error in getStats:', err);
+    if (process.env.NODE_ENV !== 'production') {
+      console.error('Error in getStats:', err);
+    }
     throw new Error('Failed to fetch stats');
   }
 }
