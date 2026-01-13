@@ -1,75 +1,137 @@
-# ⏰ Time Tracker - Split Architecture
+# ⏰ Time Tracker Application
 
-This project has been restructured to separate backend and frontend concerns following a modular architecture approach.
-
-## 🏗️ Project Structure
-
-```
-time-tracker/
-├── backend/                 # Express.js server and database logic
-│   ├── index.js            # Main server file
-│   ├── src/                # Additional server modules
-│   ├── docs/               # Documentation files
-│   │   └── sql/           # SQL database setup files
-│   ├── .env               # Environment variables
-│   ├── package.json       # Backend dependencies
-├── frontend/              # Client-side application
-│   ├── src/               # HTML, CSS, JavaScript files
-│   │   ├── index.html    # Main HTML file
-│   │   ├── app.js       # Client-side JavaScript
-│   │   └── style.css   # Stylesheet
-│   └── package.json    # Frontend dependencies
-├── docs/                # Documentation files
-│   └── instructions/   # Instruction files
-└── README.md          # Project documentation
-```
+A full-stack time tracking and task management application with user authentication, built using Node.js/Express.js backend with Supabase database and vanilla JavaScript frontend.
 
 ## 🚀 Features
 
 - **Task Management**: Create, edit, and delete tasks with titles and descriptions
-- **Time Tracking**: Start and stop timers for individual tasks
-- **Dynamic Button Visibility**: When a task is hidden and replaced with a "Stop" button, and vice versa
-- **Session Management**: Track multiple sessions per task with start/end times
-- **Statistics Dashboard**: View daily and weekly statistics including total tasks and duration
-- **Detailed Task Views**: See all sessions for each task with duration breakdowns
-- **Live Timers**: Real-time tracking with persistence in localStorage
-- **Dark/Light Theme**: Toggle between themes with persistent preference
-- **History Task Section**: View task completion history organized by creation date with progress indicators, showing tasks under the date they were created regardless of when they were completed
-- **Responsive UI**: Clean, modern interface optimized for productivity
+- **Time Tracking**: Start and stop timers for individual tasks with live updates
+- **Session Management**: Track multiple sessions per task with start/end times and durations
 - **User Authentication**: Secure registration and login functionality with user management
+- **Statistics Dashboard**: View daily and weekly statistics including total tasks and duration
+- **History Task Section**: View task completion history organized by creation date
+- **Dark/Light Theme**: Toggle between themes with persistent preference
+- **Responsive UI**: Clean, modern interface optimized for productivity
+
+## 🛠️ Tech Stack
+
+- **Backend**: Node.js + Express.js
+- **Database**: Supabase (PostgreSQL)
+- **Authentication**: Supabase Auth
+- **Frontend**: Vanilla JavaScript, HTML, CSS
+- **Deployment**: Vercel (Backend), GitHub Pages (Frontend)
+
+## 📋 Prerequisites
+
+- Node.js installed
+- Supabase project with database tables created
+- Supabase Auth enabled for user authentication
+
+## 🚀 Installation & Setup
+
+### 1. Clone the Repository
+
+```bash
+git clone <repository-url>
+cd time-tracker
+```
+
+### 2. Backend Setup
+
+```bash
+# Navigate to backend directory
+cd backend
+
+# Install dependencies
+npm install
+
+# Create environment file
+cp .env.example .env
+
+# Edit .env with your Supabase configuration
+```
+
+### 3. Database Setup
+
+Create the required database tables in your Supabase project:
+
+```sql
+-- Tasks table
+CREATE TABLE tasks (
+  id BIGSERIAL PRIMARY KEY,
+  title VARCHAR(255) NOT NULL,
+  description TEXT,
+  status TEXT DEFAULT 'active' CHECK (status IN ('active', 'completed')),
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  completed_at TIMESTAMP WITH TIME ZONE,
+  user_id UUID REFERENCES auth.users(id)
+);
+
+-- Task sessions table
+CREATE TABLE task_sessions (
+  id BIGSERIAL PRIMARY KEY,
+  task_id BIGINT REFERENCES tasks(id) ON DELETE CASCADE,
+  start_time TIMESTAMP WITH TIME ZONE NOT NULL,
+  end_time TIMESTAMP WITH TIME ZONE NOT NULL,
+  duration INTEGER NOT NULL,
+  keterangan TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  user_id UUID REFERENCES auth.users(id)
+);
+
+-- Profiles table for user information
+CREATE TABLE profiles (
+  id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+  email TEXT UNIQUE,
+  nama_lengkap TEXT NOT NULL,
+  alamat TEXT,
+  username TEXT UNIQUE NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  PRIMARY KEY (id)
+);
+```
+
+### 4. Environment Configuration
+
+Configure your `.env` file:
+
+```env
+# Supabase Configuration
+NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+
+# Server Configuration
+PORT=3000
+NODE_ENV=development
+
+# API Base URL (for frontend to connect to backend)
+NEXT_PUBLIC_API_BASE_URL=http://localhost:3000
+```
+
+### 5. Run the Application
+
+```bash
+# Navigate to backend directory and start the server
+cd backend
+npm start
+```
+
+The application will be available at `http://localhost:3000`
 
 ## 🔐 Authentication System
 
-The application includes a comprehensive authentication system with the following features:
+The application includes a comprehensive authentication system:
 
-### Registration Module
-- **User Fields**: id_user, email, nama_lengkap, alamat, username, password
-- **Validation**: Email format validation, password strength requirements
-- **Security**: Passwords are securely hashed using Supabase Auth
-- **User Profile**: Separate user profile information stored in dedicated table
+### Registration
+- User fields: email, nama_lengkap, alamat, username, password
+- Validation: Email format validation, password strength requirements
+- Security: Passwords are securely hashed using Supabase Auth
 
-### Login Module
-- **Credentials**: Accepts email or username with password
-- **Session Management**: Secure session handling with JWT tokens
-- **Role-based Access**: Different access levels based on user roles
-
-### Database Schema for Authentication
-The authentication system uses the following table structure:
-
-#### `auth.users` (managed by Supabase Auth)
-- `id` - UUID PRIMARY KEY (auto-generated by Supabase)
-- `email` - User's email address
-- `encrypted_password` - Hashed password
-- `created_at` - Account creation timestamp
-- `updated_at` - Last update timestamp
-
-#### `profiles` (custom table for extended user info)
-- `id` - UUID PRIMARY KEY (references auth.users.id)
-- `nama_lengkap` - Full name of the user
-- `alamat` - Address of the user
-- `username` - Unique username
-- `created_at` - Profile creation timestamp
-- `updated_at` - Last profile update timestamp
+### Login
+- Credentials: Accepts email or username with password
+- Session Management: Secure session handling with JWT tokens
 
 ### API Endpoints for Authentication
 
@@ -81,960 +143,7 @@ The authentication system uses the following table structure:
 | GET | `/auth/me` | Get current user profile | - (requires authentication) |
 | PUT | `/auth/profile` | Update user profile | `{ nama_lengkap, alamat, username }` |
 
-### Integration with Existing Features
-- All existing task management features remain unchanged
-- Authentication is optional for initial setup but recommended for production
-- Existing data can be migrated to user-specific records
-- Backward compatibility maintained for current functionality
-
-## 📝 Accessing Authentication Pages
-
-### Register Page
-To access the register functionality, you can:
-
-1. **Create a register HTML page** that makes a POST request to `/auth/register` with the following fields:
-   - `email`: User's email address
-   - `nama_lengkap`: Full name
-   - `alamat`: Address
-   - `username`: Desired username
-   - `password`: Secure password (at least 8 characters with uppercase, lowercase, and number)
-
-2. **API Endpoint**: `POST /auth/register`
-   - Example request:
-   ```javascript
-   fetch('/auth/register', {
-     method: 'POST',
-     headers: {
-       'Content-Type': 'application/json',
-     },
-     body: JSON.stringify({
-       email: 'user@example.com',
-       nama_lengkap: 'Full Name',
-       alamat: 'Address',
-       username: 'username',
-       password: 'SecurePassword123'
-     })
-   })
-   ```
-
-### Login Page
-To access the login functionality:
-
-1. **Create a login HTML page** that makes a POST request to `/auth/login` with:
-   - `email_or_username`: User's email or username
-   - `password`: User's password
-
-2. **API Endpoint**: `POST /auth/login`
-   - Example request:
-   ```javascript
-   fetch('/auth/login', {
-     method: 'POST',
-     headers: {
-       'Content-Type': 'application/json',
-     },
-     body: JSON.stringify({
-       email_or_username: 'user@example.com', // or username
-       password: 'SecurePassword123'
-     })
-   })
-   ```
-
-### Using Authentication in Frontend
-After successful login, you'll receive a JWT token that should be included in the Authorization header for protected API calls:
-
-```javascript
-// After login, store the token
-const token = response.user.token; // This would come from your login response
-
-// For subsequent API calls, include the token
-fetch('/api/tasks', {
-  headers: {
-    'Authorization': `Bearer ${token}`,
-    'Content-Type': 'application/json'
-  }
-});
-```
-
-### Frontend Integration Example
-You can create simple HTML forms for register and login:
-
-**Register Form Example:**
-```html
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Register - Time Tracker</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      max-width: 500px;
-      margin: 50px auto;
-      padding: 20px;
-      background-color: #f5f5f5;
-    }
-    .form-container {
-      background: white;
-      padding: 30px;
-      border-radius: 8px;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-    }
-    .form-group {
-      margin-bottom: 15px;
-    }
-    label {
-      display: block;
-      margin-bottom: 5px;
-      font-weight: bold;
-    }
-    input {
-      width: 100%;
-      padding: 10px;
-      border: 1px solid #ddd;
-      border-radius: 4px;
-      box-sizing: border-box;
-    }
-    button {
-      width: 100%;
-      padding: 12px;
-      background-color: #007bff;
-      color: white;
-      border: none;
-      border-radius: 4px;
-      cursor: pointer;
-      font-size: 16px;
-    }
-    button:hover {
-      background-color: #0056b3;
-    }
-    .message {
-      margin-top: 15px;
-      padding: 10px;
-      border-radius: 4px;
-      text-align: center;
-    }
-    .success {
-      background-color: #d4edda;
-      color: #155724;
-      border: 1px solid #c3e6cb;
-    }
-    .error {
-      background-color: #f8d7da;
-      color: #721c24;
-      border: 1px solid #f5c6cb;
-    }
-    .login-link {
-      text-align: center;
-      margin-top: 15px;
-    }
-    .login-link a {
-      color: #007bff;
-      text-decoration: none;
-    }
-  </style>
-</head>
-<body>
-  <div class="form-container">
-    <h2>Create Account</h2>
-    <form id="registerForm">
-      <div class="form-group">
-        <label for="email">Email:</label>
-        <input type="email" id="email" placeholder="Enter your email" required>
-      </div>
-
-      <div class="form-group">
-        <label for="nama_lengkap">Full Name:</label>
-        <input type="text" id="nama_lengkap" placeholder="Enter your full name" required>
-      </div>  
-
-      <div class="form-group">
-        <label for="alamat">Address:</label>
-        <input type="text" id="alamat" placeholder="Enter your address">
-      </div>
-
-      <div class="form-group">
-        <label for="username">Username:</label>
-        <input type="text" id="username" placeholder="Choose a username" required>
-      </div>
-
-      <div class="form-group">
-        <label for="password">Password:</label>
-        <input type="password" id="password" placeholder="Create a password" required>
-      </div>
-
-      <button type="submit" id="registerBtn">Register</button>
-    </form>
-
-    <div id="message"></div>
-
-    <div class="login-link">
-      Already have an account? <a href="login.html">Login here</a>
-    </div>
-  </div>
-
-  <script>
-    document.getElementById('registerForm').addEventListener('submit', async (e) => {
-      e.preventDefault();
-
-      // Get form values
-      const email = document.getElementById('email').value;
-      const nama_lengkap = document.getElementById('nama_lengkap').value;
-      const alamat = document.getElementById('alamat').value;
-      const username = document.getElementById('username').value;
-      const password = document.getElementById('password').value;
-
-      // Disable button and show loading state
-      const registerBtn = document.getElementById('registerBtn');
-      const originalText = registerBtn.textContent;
-      registerBtn.textContent = 'Registering...';
-      registerBtn.disabled = true;
-
-      try {
-        const response = await fetch('/auth/register', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            email,
-            nama_lengkap,
-            alamat,
-            username,
-            password
-          })
-        });
-
-        const result = await response.json();
-
-        const messageDiv = document.getElementById('message');
-
-        if (result.success) {
-          messageDiv.innerHTML = '<div class="message success">Registration successful! Redirecting to login...</div>';
-
-          // Redirect to login page after a short delay
-          setTimeout(() => {
-            window.location.href = 'login.html';
-          }, 2000);
-        } else {
-          messageDiv.innerHTML = '<div class="message error">' + result.message + '</div>';
-        }
-      } catch (error) {
-        const messageDiv = document.getElementById('message');
-        messageDiv.innerHTML = '<div class="message error">An error occurred. Please try again.</div>';
-        console.error('Registration error:', error);
-      } finally {
-        // Re-enable button
-        registerBtn.textContent = originalText;
-        registerBtn.disabled = false;
-      }
-    });
-  </script>
-</body>
-</html>
-```
-
-**Login Form Example:**
-```html
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Login - Time Tracker</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      max-width: 500px;
-      margin: 50px auto;
-      padding: 20px;
-      background-color: #f5f5f5;
-    }
-    .form-container {
-      background: white;
-      padding: 30px;
-      border-radius: 8px;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-    }
-    .form-group {
-      margin-bottom: 15px;
-    }
-    label {
-      display: block;
-      margin-bottom: 5px;
-      font-weight: bold;
-    }
-    input {
-      width: 100%;
-      padding: 10px;
-      border: 1px solid #ddd;
-      border-radius: 4px;
-      box-sizing: border-box;
-    }
-    button {
-      width: 100%;
-      padding: 12px;
-      background-color: #28a745;
-      color: white;
-      border: none;
-      border-radius: 4px;
-      cursor: pointer;
-      font-size: 16px;
-    }
-    button:hover {
-      background-color: #218838;
-    }
-    .message {
-      margin-top: 15px;
-      padding: 10px;
-      border-radius: 4px;
-      text-align: center;
-    }
-    .success {
-      background-color: #d4edda;
-      color: #155724;
-      border: 1px solid #c3e6cb;
-    }
-    .error {
-      background-color: #f8d7da;
-      color: #721c24;
-      border: 1px solid #f5c6cb;
-    }
-    .register-link {
-      text-align: center;
-      margin-top: 15px;
-    }
-    .register-link a {
-      color: #007bff;
-      text-decoration: none;
-    }
-  </style>
-</head>
-<body>
-  <div class="form-container">
-    <h2>Login to Your Account</h2>
-    <form id="loginForm">
-      <div class="form-group">
-        <label for="email_or_username">Email or Username:</label>
-        <input type="text" id="email_or_username" placeholder="Enter email or username" required>
-      </div>
-
-      <div class="form-group">
-        <label for="password">Password:</label>
-        <input type="password" id="password" placeholder="Enter your password" required>
-      </div>
-
-      <button type="submit" id="loginBtn">Login</button>
-    </form>
-
-    <div id="message"></div>
-
-    <div class="register-link">
-      Don't have an account? <a href="register.html">Register here</a>
-    </div>
-  </div>
-
-  <script>
-    document.getElementById('loginForm').addEventListener('submit', async (e) => {
-      e.preventDefault();
-
-      // Get form values
-      const email_or_username = document.getElementById('email_or_username').value;
-      const password = document.getElementById('password').value;
-
-      // Disable button and show loading state
-      const loginBtn = document.getElementById('loginBtn');
-      const originalText = loginBtn.textContent;
-      loginBtn.textContent = 'Logging in...';
-      loginBtn.disabled = true;
-
-      try {
-        const response = await fetch('/auth/login', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            email_or_username,
-            password
-          })
-        });
-
-        const result = await response.json();
-
-        const messageDiv = document.getElementById('message');
-
-        if (result.success) {
-          messageDiv.innerHTML = '<div class="message success">Login successful! Redirecting...</div>';
-
-          // Store the token and user info in localStorage
-          localStorage.setItem('authToken', JSON.stringify(result.user));
-
-          // Redirect to main application after a short delay
-          setTimeout(() => {
-            window.location.href = 'index.html';
-          }, 1000);
-        } else {
-          messageDiv.innerHTML = '<div class="message error">' + result.message + '</div>';
-        }
-      } catch (error) {
-        const messageDiv = document.getElementById('message');
-        messageDiv.innerHTML = '<div class="message error">An error occurred. Please try again.</div>';
-        console.error('Login error:', error);
-      } finally {
-        // Re-enable button
-        loginBtn.textContent = originalText;
-        loginBtn.disabled = false;
-      }
-    });
-  </script>
-</body>
-</html>
-```
-
-**Using Authentication with Existing API Endpoints:**
-After successful login, you can use the authentication token to access user-specific data from the existing API endpoints:
-
-```javascript
-// Function to get the auth token from localStorage
-function getAuthToken() {
-  const tokenData = localStorage.getItem('authToken');
-  if (tokenData) {
-    const parsed = JSON.parse(tokenData);
-    return parsed.token || parsed.access_token; // Different auth systems may use different property names
-  }
-  return null;
-}
-
-// Example: Fetching user-specific tasks
-async function getUserTasks() {
-  const token = getAuthToken();
-
-  if (!token) {
-    console.error('User not authenticated');
-    return;
-  }
-
-  try {
-    const response = await fetch('/api/tasks', {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      }
-    });
-
-    const data = await response.json();
-    console.log('User tasks:', data);
-  } catch (error) {
-    console.error('Error fetching tasks:', error);
-  }
-}
-
-// Example: Creating a task for the authenticated user
-async function createTask(title, description) {
-  const token = getAuthToken();
-
-  if (!token) {
-    console.error('User not authenticated');
-    return;
-  }
-
-  try {
-    const response = await fetch('/api/tasks', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        title: title,
-        description: description
-      })
-    });
-
-    const data = await response.json();
-    console.log('Created task:', data);
-  } catch (error) {
-    console.error('Error creating task:', error);
-  }
-}
-```
-
-**Protecting Pages Based on Authentication:**
-You can also protect certain pages by checking for authentication:
-
-```javascript
-// Check if user is authenticated before accessing protected pages
-function checkAuth() {
-  const token = getAuthToken();
-
-  if (!token) {
-    // Redirect to login if not authenticated
-    window.location.href = 'login.html';
-  }
-
-  return !!token;
-}
-
-// Call this function on protected pages
-window.onload = function() {
-  checkAuth();
-};
-```
-
-**Logout Functionality:**
-To log out, you can clear the stored token and redirect the user:
-
-```javascript
-function logout() {
-  // Clear the stored token
-  localStorage.removeItem('authToken');
-
-  // Redirect to login page
-  window.location.href = 'login.html';
-}
-
-// Add event listener to logout button
-document.getElementById('logoutBtn').addEventListener('click', logout);
-```
-
-## 🔧 Troubleshooting Common Issues
-
-### Registration Error: "Unexpected token '<'"
-This error typically occurs when the server returns an HTML page instead of the expected JSON response. Common causes and solutions:
-
-1. **Middleware Order Issue**: This error has been fixed in the latest version. The authentication routes are now properly ordered before static file middleware to prevent conflicts.
-
-2. **Server Not Running**: Make sure the backend server is running:
-   ```bash
-   cd backend
-   npm start
-   ```
-
-3. **Supabase Configuration**: Ensure your `.env` file has the correct Supabase configuration:
-   ```env
-   NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
-   NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
-   SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
-   ```
-
-4. **Database Tables**: Make sure the `profiles` table exists in your Supabase database. Run the migration SQL:
-   ```sql
-   -- Create profiles table for user information
-   CREATE TABLE IF NOT EXISTS profiles (
-     id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
-     email TEXT UNIQUE,
-     nama_lengkap TEXT NOT NULL,
-     alamat TEXT,
-     username TEXT UNIQUE NOT NULL,
-     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-     PRIMARY KEY (id)
-   );
-
-   -- Enable Row Level Security (RLS) for profiles table
-   ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
-   ```
-
-5. **Check Server Logs**: Look at the server console for specific error messages when registration fails.
-
-6. **CORS Configuration**: Ensure your Supabase project has the correct CORS settings for your domain.
-
-### If Registration Still Fails
-If you're still experiencing registration issues:
-- Verify that the backend server is restarted after making changes
-- Check that all required environment variables are set
-- Ensure the Supabase project is properly configured with Auth enabled
-- Confirm that the database tables exist and have the correct structure
-
-### Login Error: "Invalid credentials"
-- Verify that the user account exists in the Supabase Auth system
-- Check that the email/username and password are correct
-- Ensure the user is confirmed (if email confirmation is required)
-
-### API Calls Failing After Login
-- Verify that the authentication token is being included in API requests
-- Check that the token hasn't expired
-- Ensure the user-specific data isolation is working correctly
-<form id="loginForm">
-  <input type="text" id="email_or_username" placeholder="Email or Username" required>
-  <input type="password" id="password" placeholder="Password" required>
-  <button type="submit">Login</button>
-</form>
-
-<script>
-document.getElementById('loginForm').addEventListener('submit', async (e) => {
-  e.preventDefault();
-
-  const formData = {
-    email_or_username: document.getElementById('email_or_username').value,
-    password: document.getElementById('password').value
-  };
-
-  const response = await fetch('/auth/login', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify(formData)
-  });
-
-  const result = await response.json();
-  console.log(result);
-
-  // Store token for future API calls if login is successful
-  if (result.success) {
-    localStorage.setItem('authToken', result.user.token);
-  }
-});
-</script>
-```
-
-## 🛠️ Tech Stack
-
-- **Backend**: Node.js + Express.js
-- **Database**: Supabase (PostgreSQL)
-- **Authentication**: Supabase Auth
-- **Frontend**: Vanilla JavaScript, HTML, CSS
-- **Styling**: Custom CSS with dark/light theme support
-
-## 🗂️ File Organization
-
-### SQL Files Location
-Database schema and migration files have been organized into a dedicated directory:
-- `backend/docs/sql/` - Contains all database-related SQL files:
-  - `create_profiles_table.sql` - Creates the user profiles table
-  - `setup_database.sql` - Initial database setup script
-  - `update_schema.sql` - Schema update/migration script
-  - `update_tables_for_auth.sql` - Authentication-related table updates
-
-### Git Configuration
-The project includes proper .gitignore configuration to exclude unnecessary files:
-- `node_modules/` - Excludes dependency directories from git tracking
-- Development and build artifacts are properly ignored
-- Only source code and essential configuration files are tracked
-
-## 📋 Prerequisites
-
-- Node.js installed
-- Supabase project with database tables created
-- Supabase Auth enabled for user authentication
-
-### Supabase Setup (Required)
-
-This application is configured to connect to a Supabase project. To use this setup:
-
-1. Ensure you have a Supabase account and project created
-2. Create the required database tables in your Supabase SQL editor:
-   ```sql
-   -- Tasks table
-   CREATE TABLE tasks (
-     id BIGSERIAL PRIMARY KEY,
-     title VARCHAR(255) NOT NULL,
-     description TEXT,
-     status TEXT DEFAULT 'active' CHECK (status IN ('active', 'completed')),
-     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-     completed_at TIMESTAMP WITH TIME ZONE
-   );
-
-   -- Task sessions table
-   CREATE TABLE task_sessions (
-     id BIGSERIAL PRIMARY KEY,
-     task_id BIGINT REFERENCES tasks(id) ON DELETE CASCADE,
-     start_time TIMESTAMP WITH TIME ZONE NOT NULL,
-     end_time TIMESTAMP WITH TIME ZONE NOT NULL,
-     duration INTEGER NOT NULL,
-     keterangan TEXT,
-     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-   );
-   ```
-3. Get your Supabase project URL and API keys from your Supabase dashboard
-
-## 🚀 Installation & Setup
-
-## 🌐 GitHub Pages Deployment
-
-The frontend of this application is deployed to GitHub Pages. Once configured, it will be accessible at:
-
-```
-https://aspsptyd.github.io/tracker-task/
-```
-
-Note: The frontend needs to connect to a backend server to function properly. See the backend configuration section below.
-
-## ☁️ Deploying Backend to Vercel
-
-This application can be deployed to Vercel for the backend API services. Here's how to deploy:
-
-### Prerequisites
-- A Vercel account (sign up at [vercel.com](https://vercel.com))
-- The Vercel CLI installed (`npm i -g vercel`)
-- Or deploy directly from the Vercel dashboard
-
-### Deployment Steps
-
-1. **Install Vercel CLI** (if deploying from terminal):
-   ```bash
-   npm i -g vercel
-   ```
-
-2. **Navigate to the backend directory**:
-   ```bash
-   cd backend
-   ```
-
-3. **Deploy to Vercel**:
-   ```bash
-   vercel
-   ```
-
-   Follow the prompts to link your project to your Vercel account.
-
-4. **Set Environment Variables** in the Vercel dashboard or during deployment:
-   - `NEXT_PUBLIC_SUPABASE_URL`: Your Supabase project URL
-   - `NEXT_PUBLIC_SUPABASE_ANON_KEY`: Your Supabase anon key
-   - `SUPABASE_SERVICE_ROLE_KEY`: Your Supabase service role key
-
-5. **Configure the deployment settings**:
-   - Framework: None/Other (since we're using a custom Express setup)
-   - Root directory: `/backend`
-
-### Alternative: Deploy via Vercel Dashboard
-
-1. Go to [vercel.com](https://vercel.com)
-2. Click "New Project"
-3. Import your repository (or connect to GitHub)
-4. Select the `backend` directory as the root
-5. Set the build command to `npm install`
-6. Set the output directory to `.` (current directory)
-7. Add the required environment variables in the Settings → Environment Variables section
-
-### Using the Deployed Backend
-
-Once deployed, your backend will be accessible at:
-```
-https://your-project-name.vercel.app
-```
-
-Update your GitHub Pages deployment to use the new backend URL by setting the `BACKEND_API_URL` secret in your GitHub repository settings to your Vercel deployment URL.
-
-## 🚀 Local Installation & Setup
-
-### 1. Clone and Install Dependencies
-
-```bash
-# Clone the repository
-git clone <repository-url>
-cd time-tracker
-
-# Install backend dependencies
-cd backend
-npm install
-
-# Install frontend dependencies (optional, for development)
-cd ../frontend
-npm install
-```
-
-### 2. Database Setup
-
-You need to manually create the database tables in your Supabase project:
-
-1. Go to your Supabase Dashboard
-2. Navigate to Database → SQL Editor
-3. Run the following SQL commands to create the required tables:
-
-```sql
--- Tasks table
-CREATE TABLE tasks (
-  id BIGSERIAL PRIMARY KEY,
-  title VARCHAR(255) NOT NULL,
-  description TEXT,
-  status TEXT DEFAULT 'active' CHECK (status IN ('active', 'completed')),
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  completed_at TIMESTAMP WITH TIME ZONE
-);
-
--- Task sessions table
-CREATE TABLE task_sessions (
-  id BIGSERIAL PRIMARY KEY,
-  task_id BIGINT REFERENCES tasks(id) ON DELETE CASCADE,
-  start_time TIMESTAMP WITH TIME ZONE NOT NULL,
-  end_time TIMESTAMP WITH TIME ZONE NOT NULL,
-  duration INTEGER NOT NULL,
-  keterangan TEXT,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-```
-
-### 3. Configure Environment Variables
-
-Copy the `.env` file in the backend directory and configure your database settings:
-
-```bash
-cd backend
-cp .env.example .env
-# Edit .env with your database configuration
-```
-
-### 4. Environment Configuration for Local Development vs Production
-
-This project supports dynamic environment switching between local development and production deployments. The configuration is handled through environment variables:
-
-#### Local Development Environment
-For local development, use the following `.env` configuration:
-```env
-# Supabase Configuration for Local Development
-NEXT_PUBLIC_SUPABASE_URL=https://your-local-project.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your-local-anon-key
-SUPABASE_SERVICE_ROLE_KEY=your-local-service-role-key
-
-# Server Configuration
-PORT=3000
-NODE_ENV=development
-
-# API Base URL (for frontend to connect to backend)
-NEXT_PUBLIC_API_BASE_URL=http://localhost:3000
-```
-
-#### Production/Vercel Environment
-For production deployment (Vercel), use the following configuration:
-```env
-# Supabase Configuration for Production
-NEXT_PUBLIC_SUPABASE_URL=https://your-production-project.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your-production-anon-key
-SUPABASE_SERVICE_ROLE_KEY=your-production-service-role-key
-
-# Server Configuration
-PORT=3000
-NODE_ENV=production
-
-# API Base URL (for frontend to connect to backend)
-NEXT_PUBLIC_API_BASE_URL=https://your-vercel-domain.vercel.app
-```
-
-### 5. Dynamic Environment Switching
-
-The application automatically adapts to different environments based on the `NODE_ENV` variable and `NEXT_PUBLIC_API_BASE_URL`:
-
-#### For Local Development:
-```bash
-# Navigate to backend directory
-cd backend
-
-# Set environment variables and start the server
-NODE_ENV=development NEXT_PUBLIC_API_BASE_URL=http://localhost:3000 npm start
-```
-
-#### For Production-like Local Testing:
-```bash
-# Navigate to backend directory
-cd backend
-
-# Set environment variables to mimic production
-NODE_ENV=production NEXT_PUBLIC_API_BASE_URL=https://your-vercel-domain.vercel.app npm start
-```
-
-#### Using Cross-Platform Environment Variables:
-For Windows PowerShell users:
-```powershell
-$env:NODE_ENV='development'; $env:NEXT_PUBLIC_API_BASE_URL='http://localhost:3000'; cd backend; npm start
-```
-
-Or use the `cross-env` package for cross-platform compatibility:
-```bash
-npx cross-env NODE_ENV=development NEXT_PUBLIC_API_BASE_URL=http://localhost:3000 npm start
-```
-
-### 6. Run the Application
-
-#### Backend Server (with frontend served statically)
-
-**Important**: Navigate to the backend directory before running commands:
-
-```bash
-cd backend
-npm start
-```
-
-Or run directly from the project root:
-
-```bash
-cd /Users/goodevaninja_mac1/Documents/Asep Septiadi/Portofolio/time-tracker/backend && npm start
-```
-
-The server will start on http://localhost:3000
-
-#### Frontend Development Server (Separate)
-
-For development purposes, you can run the frontend separately:
-
-```bash
-cd frontend
-npm run dev
-```
-
-Or run directly from the project root:
-
-```bash
-cd /Users/goodevaninja_mac1/Documents/Asep Septiadi/Portofolio/time-tracker/frontend && npm run dev
-```
-
-#### Running with Different Environments
-
-You can easily switch between different configurations:
-
-```bash
-# Development mode
-cd backend && NODE_ENV=development NEXT_PUBLIC_API_BASE_URL=http://localhost:3000 npm start
-
-# Production simulation mode
-cd backend && NODE_ENV=production NEXT_PUBLIC_API_BASE_URL=https://yourdomain.com npm start
-```
-
-### 7. Vercel Deployment Configuration
-
-When deploying to Vercel, the environment variables will be automatically picked up from your Vercel project settings. The application will seamlessly transition from local development to production without code changes.
-
-#### Vercel Configuration (vercel.json)
-The project includes a `vercel.json` file that configures the deployment:
-
-```json
-{
-  "version": 2,
-  "builds": [
-    {
-      "src": "backend/index.js",
-      "use": "@vercel/node"
-    }
-  ],
-  "routes": [
-    {
-      "src": "/api/(.*)",
-      "dest": "backend/index.js"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "backend/index.js"
-    }
-  ]
-}
-```
-
-This configuration ensures that both API routes and static files are properly handled in the Vercel environment.
-
 ## 🌐 API Endpoints
-
-### Authentication Endpoints
-
-| Method | Endpoint | Description | Body |
-|--------|----------|-------------|------|
-| POST | `/auth/register` | Register new user | `{ email, nama_lengkap, alamat, username, password }` |
-| POST | `/auth/login` | Authenticate user | `{ email_or_username, password }` |
-| POST | `/auth/logout` | End user session | - |
-| GET | `/auth/me` | Get current user profile | - (requires authentication) |
-| PUT | `/auth/profile` | Update user profile | `{ nama_lengkap, alamat, username }` |
 
 ### Task Management Endpoints
 
@@ -1053,361 +162,92 @@ This configuration ensures that both API routes and static files are properly ha
 | PUT | `/api/tasks/:id` | Update task (including status) | `{ title, description, status }` |
 | GET | `/api/history` | Get task history organized by completion date | - |
 
-### Authentication Implementation Notes
-
-- **JWT Tokens**: The system uses Supabase's built-in JWT authentication
-- **Session Management**: Secure session handling with automatic token refresh
-- **User Isolation**: All task data is isolated by user, ensuring privacy
-- **Backward Compatibility**: Existing API endpoints continue to work without authentication (for backward compatibility)
-- **Migration Path**: Existing data can be associated with users during migration
-
-## 📊 Database Schema
-
-### `tasks` table
-- `id` - BIGSERIAL PRIMARY KEY (auto-incrementing)
-- `title` - VARCHAR(255) NOT NULL
-- `description` - TEXT
-- `status` - TEXT DEFAULT 'active' with CHECK constraint ('active' or 'completed')
-- `created_at` - TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-- `completed_at` - TIMESTAMP WITH TIME ZONE NULL
-- `user_id` - UUID REFERENCES auth.users(id) (added for authentication)
-
-### `task_sessions` table
-- `id` - BIGSERIAL PRIMARY KEY (auto-incrementing)
-- `task_id` - BIGINT REFERENCES tasks(id) ON DELETE CASCADE
-- `start_time` - TIMESTAMP WITH TIME ZONE NOT NULL
-- `end_time` - TIMESTAMP WITH TIME ZONE NOT NULL
-- `duration` - INTEGER NOT NULL (in seconds)
-- `keterangan` - TEXT NULL (session descriptions)
-- `created_at` - TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-- `user_id` - UUID REFERENCES auth.users(id) (added for authentication)
-
-### `auth.users` table (managed by Supabase Auth)
-- `id` - UUID PRIMARY KEY (auto-generated by Supabase)
-- `email` - User's email address
-- `encrypted_password` - Hashed password
-- `created_at` - Account creation timestamp
-- `updated_at` - Last update timestamp
-
-### `profiles` table (custom table for extended user info)
-- `id` - UUID PRIMARY KEY (references auth.users.id)
-- `email` - User's email address (duplicate for easier queries)
-- `nama_lengkap` - Full name of the user
-- `alamat` - Address of the user
-- `username` - Unique username
-- `created_at` - Profile creation timestamp
-- `updated_at` - Last profile update timestamp
-
-## 🗂️ Database Migration for Authentication
-
-To add authentication to existing tables, run the following SQL migration:
-
-```sql
--- Add user_id column to tasks table
-ALTER TABLE tasks ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES auth.users(id);
-
--- Add user_id column to task_sessions table
-ALTER TABLE task_sessions ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES auth.users(id);
-
--- Create indexes for better performance with user associations
-CREATE INDEX IF NOT EXISTS idx_tasks_user_id ON tasks(user_id);
-CREATE INDEX IF NOT EXISTS idx_task_sessions_user_id ON task_sessions(user_id);
-
--- Update RLS policies to enforce user-specific access
-ALTER TABLE tasks ENABLE ROW LEVEL SECURITY;
-ALTER TABLE task_sessions ENABLE ROW LEVEL SECURITY;
-
--- Create policies for tasks table
-CREATE POLICY "Users can view own tasks" ON tasks
-  FOR SELECT USING (auth.uid() = user_id OR user_id IS NULL);
-
-CREATE POLICY "Users can insert own tasks" ON tasks
-  FOR INSERT WITH CHECK (auth.uid() = user_id OR user_id IS NULL);
-
-CREATE POLICY "Users can update own tasks" ON tasks
-  FOR UPDATE USING (auth.uid() = user_id OR user_id IS NULL);
-
-CREATE POLICY "Users can delete own tasks" ON tasks
-  FOR DELETE USING (auth.uid() = user_id OR user_id IS NULL);
-
--- Create policies for task_sessions table
-CREATE POLICY "Users can view own task sessions" ON task_sessions
-  FOR SELECT USING (auth.uid() = user_id OR user_id IS NULL);
-
-CREATE POLICY "Users can insert own task sessions" ON task_sessions
-  FOR INSERT WITH CHECK (auth.uid() = user_id OR user_id IS NULL);
-
-CREATE POLICY "Users can update own task sessions" ON task_sessions
-  FOR UPDATE USING (auth.uid() = user_id OR user_id IS NULL);
-
-CREATE POLICY "Users can delete own task sessions" ON task_sessions
-  FOR DELETE USING (auth.uid() = user_id OR user_id IS NULL);
-```
-
-### Create Profiles Table
-
-To create the profiles table for extended user information:
-
-```sql
--- Create profiles table for user information
-CREATE TABLE IF NOT EXISTS profiles (
-  id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
-  email TEXT UNIQUE,
-  nama_lengkap TEXT NOT NULL,
-  alamat TEXT,
-  username TEXT UNIQUE NOT NULL,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  PRIMARY KEY (id)
-);
-
--- Enable Row Level Security (RLS) for profiles table
-ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
-
--- Create policies for profiles table
-CREATE POLICY "Users can view own profile" ON profiles
-  FOR SELECT USING (auth.uid() = id);
-
-CREATE POLICY "Users can update own profile" ON profiles
-  FOR UPDATE USING (auth.uid() = id);
-
--- Create indexes for better performance
-CREATE INDEX idx_profiles_email ON profiles(email);
-CREATE INDEX idx_profiles_username ON profiles(username);
-
--- Create trigger to update the 'updated_at' column
-CREATE OR REPLACE FUNCTION update_updated_at_column()
-RETURNS TRIGGER AS $$
-BEGIN
-   NEW.updated_at = CURRENT_TIMESTAMP;
-   RETURN NEW;
-END;
-$$ language 'plpgsql';
-
-CREATE TRIGGER update_profiles_updated_at
-    BEFORE UPDATE ON profiles
-    FOR EACH ROW
-    EXECUTE FUNCTION update_updated_at_column();
-```
-
 ## 🎨 Frontend Features
 
 ### Dashboard
-- **Total Hari Ini**: Shows the total accumulated time worked today (e.g., "0h 17m 26s") - this is the main focus for daily tracking
-- **Total Keseluruhan**: Shows the total accumulated time across all tasks ever recorded (appears as sub-label)
+- **Total Hari Ini**: Shows the total accumulated time worked today
+- **Total Keseluruhan**: Shows the total accumulated time across all tasks
 - **Task Running**: Count of currently active timers
 - **Total Task in Week**: Number of tasks completed this week
-
-### Recent Enhancement: Time Tracking Clarification
-To address user confusion about time calculations, we've clarified the dashboard display:
-- **Focus Shift**: The main "Total Hari Ini" counter now shows the time worked specifically today (previously showed total accumulated time)
-- **Clearer Labels**: Added "Total Keseluruhan" sub-label to show the grand total across all tasks
-- **Rationale**: This eliminates confusion between daily time tracking and lifetime totals, making daily tracking the primary focus
-- **User Benefit**: Users can now clearly see their daily progress without mixing it up with historical data
-
-### Session Descriptions (Keterangan)
-- **'+ Keterangan' Button**: Appears next to 'Edit' button in session detail popup
-- **Description Dialog**: Separate dialog without closing main detail popup
-- **Input Field**: Textarea for entering session descriptions
-- **Action Buttons**: 'Batalkan' (Cancel) and 'Tambahkan' (Add) buttons
-- **Visual Display**: Descriptions shown in silver text below session range
-- **Persistent Storage**: Descriptions saved to database and retrieved on reload
 
 ### Task Management
 - Create new tasks with title and description
 - Edit existing tasks
 - Delete tasks (and all associated sessions)
-- Mark tasks as completed/incomplete with "Finish" and "Not Done" buttons
-- View detailed information about each task
+- Mark tasks as completed/incomplete
 - Tasks are organized into "Active Tasks" and "Completed Tasks" sections
-- **Text Wrapping**: Long task titles now properly wrap to multiple lines instead of being truncated
-- **Improved Placeholder**: Changed placeholder text from "Task title" to "Mau ngerjain apa hari ini?" for better user experience
-- **Improved Description Placeholder**: Changed placeholder text from "Description" to "Tambahkan keterangan / catatan" for better user experience
-- **Enhanced Create Button**: Changed button text from "Create" to "Buat Task Sekarang" and added a pencil icon for better visual indication
 
 ### Time Tracking
 - Start/Stop timers for individual tasks
-- Dynamic button visibility: When a task is running, the "Start" button is hidden and replaced with a "Stop" button, and vice versa
+- Dynamic button visibility: When a task is running, the "Start" button is hidden and replaced with a "Stop" button
 - Live timer display with real-time updates
 - Session history with start/end times and duration
-- Local storage persistence for active timers
 
 ### History Task Section
-- **Date-based Organization**: Tasks are grouped by completion date
+- **Date-based Organization**: Tasks are grouped by creation date
 - **Today's Label**: Current day shows as "Hari Ini" (Today in Indonesian)
-- **Date Formatting**: Previous days show in "DD MMM YYYY" format (e.g., "6 Jan 2025")
-- **Progress Indicators**: Each date group shows progress in "X/Y" format (X = completed tasks created on that date, Y = total tasks created on that date)
-- **Task Lists**: Shows completed tasks under their respective date groups
-- **Automatic Updates**: History updates in real-time when tasks are completed or modified
-- **Accurate Counting**: Fixed logic to properly calculate completed vs total tasks per date, ensuring correct progress ratios (e.g., if 3 tasks were created on a date and all 3 were completed, it shows 3/3)
+- **Date Formatting**: Previous days show in "DD MMM YYYY" format
+- **Progress Indicators**: Each date group shows progress in "X/Y" format
 
-### User Experience
-- Clean, modern UI with card-based layout
-- Dark/light theme toggle with persistent preference
-- Responsive design for all screen sizes
-- Intuitive navigation and controls
-- Modal dialogs for task and session editing
+## ☁️ Deploying to Vercel
 
-## ⚙️ Environment Variables
+### Prerequisites
+- A Vercel account
+- The Vercel CLI installed (`npm i -g vercel`)
 
-### .env File Template
+### Deployment Steps
 
-Create a `.env` file in the `backend` directory with the following template:
+1. Navigate to the backend directory:
+   ```bash
+   cd backend
+   ```
 
-```env
-# Supabase Configuration
-NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
-SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+2. Deploy to Vercel:
+   ```bash
+   vercel
+   ```
 
-# Server Configuration
-PORT=3000
-NODE_ENV=development
+3. Set Environment Variables in the Vercel dashboard:
+   - `NEXT_PUBLIC_SUPABASE_URL`: Your Supabase project URL
+   - `NEXT_PUBLIC_SUPABASE_ANON_KEY`: Your Supabase anon key
+   - `SUPABASE_SERVICE_ROLE_KEY`: Your Supabase service role key
 
-# API Base URL (for frontend to connect to backend)
-NEXT_PUBLIC_API_BASE_URL=http://localhost:3000
-```
+## 🧪 Testing
 
-### Available Environment Variables
+### Running Unit Tests
 
-| Variable | Description | Default | Required |
-|----------|-------------|---------|----------|
-| `NEXT_PUBLIC_SUPABASE_URL` | Supabase project URL | (none) | Yes |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase anon key for client-side operations | (none) | Yes |
-| `SUPABASE_SERVICE_ROLE_KEY` | Supabase service role key for server-side operations | (none) | Yes |
-| `PORT` | HTTP port the Express server listens on | 3000 | No |
-| `NODE_ENV` | Environment mode (development/production) | development | No |
-| `NEXT_PUBLIC_API_BASE_URL` | Base URL for API calls from frontend | http://localhost:3000 | No (but recommended) |
-
-### Running with Environment Variables
-
-You can override runtime configuration with environment variables when starting the app:
+To run the existing unit tests:
 
 ```bash
-# Example: run server on port 3001 with different Supabase settings
-PORT=3001 NODE_ENV=production NEXT_PUBLIC_API_BASE_URL=https://yourdomain.com npm start
-```
-
-### Environment-Specific Configurations
-
-#### Development Environment
-```bash
-NODE_ENV=development NEXT_PUBLIC_API_BASE_URL=http://localhost:3000 npm start
-```
-
-#### Production Environment
-```bash
-NODE_ENV=production NEXT_PUBLIC_API_BASE_URL=https://yourdomain.com npm start
-```
-
-#### Cross-Platform Environment Variables
-For consistent behavior across platforms, you can use the `cross-env` package:
-```bash
-npx cross-env NODE_ENV=production NEXT_PUBLIC_API_BASE_URL=https://yourdomain.com npm start
-```
-
-## 🧪 Development
-
-### Running Locally
-For local development:
-
-```bash
-# Navigate to the backend directory and start the server
 cd backend
-npm start
+node test/secondsToString.test.js
 ```
 
-### Cross-platform Notes
-- The prefix style `VAR=val npm start` works on macOS/Linux
-- On Windows PowerShell use:
-```powershell
-$env:PORT='3001'; cd backend; npm start
-```
-- Or use the `cross-env` package to make scripts cross-platform
+This will run the unit tests for the `secondsToString` function and display the results.
 
-## 📋 API Response Examples
+## 🔧 Troubleshooting
 
-### History Task Response (`GET /api/history`)
-```json
-[
-  {
-    "date": "2025-01-07",
-    "dateLabel": "Hari Ini",
-    "progress": "2/3",
-    "tasks": [
-      {
-        "id": 1,
-        "title": "Sample Task",
-        "description": "This is a sample task to test the application",
-        "status": "completed",
-        "created_at": "2025-01-07T08:30:00.000Z",
-        "completed_at": "2025-01-07T10:45:00.000Z",
-        "total_duration": 7200
-      }
-    ]
-  },
-  {
-    "date": "2025-01-06",
-    "dateLabel": "6 Jan 2025",
-    "progress": "5/7",
-    "tasks": [
-      {
-        "id": 2,
-        "title": "Another Task",
-        "description": "Another task description",
-        "status": "completed",
-        "created_at": "2025-01-06T09:00:00.000Z",
-        "completed_at": "2025-01-06T11:30:00.000Z",
-        "total_duration": 5400
-      },
-      {
-        "id": 3,
-        "title": "Task Created Yesterday, Completed Today",
-        "description": "This task was created on Jan 6 but completed on Jan 7",
-        "status": "completed",
-        "created_at": "2025-01-06T15:00:00.000Z",
-        "completed_at": "2025-01-07T09:15:00.000Z",
-        "total_duration": 3600
-      }
-    ]
-  }
-]
+### Common Issues
+
+#### Port Already in Use Error
+If you encounter `listen EADDRINUSE: address already in use ::1:3000`:
+```bash
+# Identify the process using port 3000
+lsof -i :3000
+
+# Kill the process (replace PID with actual process ID)
+kill <PID>
+
+# Or use a different port
+PORT=3001 npm start
 ```
 
-### History Task Features
-
-- **Date-based Organization**: Tasks are grouped by creation date, regardless of when they were completed
-- **Cross-date Completion**: Tasks created on one date but completed on another date appear under their creation date
-- **Today's Label**: Current day shows as "Hari Ini" (Today in Indonesian)
-- **Date Formatting**: Previous days show in "DD MMM YYYY" format (e.g., "6 Jan 2025")
-- **Progress Indicators**: Each date group shows progress in "X/Y" format (X = completed tasks created on that date, Y = total tasks created on that date)
-- **Task Lists**: Shows completed tasks under their respective date groups
-- **Automatic Updates**: History updates in real-time when tasks are completed or modified
-- **Accurate Counting**: Fixed logic to properly calculate completed vs total tasks per date, ensuring correct progress ratios
-
-## 📈 Time Blocking & Tracking Philosophy
-
-This application implements a time blocking approach where:
-- Each task can have multiple sessions (time blocks)
-- Sessions are consolidated into a single task representation
-- Detailed session history is available in task detail views
-- Time tracking is precise with start/end time recording
-- Statistics provide insights into productivity patterns
-
-## 📝 Session Descriptions (Keterangan)
-
-New functionality added to enhance session tracking:
-- Each session can have additional descriptions/keterangan
-- '+ Keterangan' button allows adding descriptions to individual sessions
-- Descriptions appear in silver text below the session time range
-- Descriptions are stored in the database and persist between sessions
-- Separate dialog with 'Batalkan' (Cancel) and 'Tambahkan' (Add) buttons
-
-## 🔐 Security Notes
-
-- Avoid committing secrets (passwords) into source control
-- For production, use secure secret management
-- The current implementation uses basic authentication with database credentials
+#### Registration Error: "Unexpected token '<'"
+Common causes and solutions:
+1. Ensure the backend server is running
+2. Verify your Supabase configuration in `.env` file
+3. Check that the `profiles` table exists in your Supabase database
+4. Look at server console for specific error messages
 
 ## 🤝 Contributing
 
@@ -1425,306 +265,6 @@ New functionality added to enhance session tracking:
 - Task tagging and categorization
 - More advanced filtering and search capabilities
 
-## 🧪 Testing
+## 📄 License
 
-### Running Tests
-
-To run the existing unit tests, navigate to the backend directory and execute the test file directly with Node.js:
-
-```bash
-cd backend
-node test/secondsToString.test.js
-```
-
-This will run the unit tests for the `secondsToString` function and display the results in the console.
-
-When you run the test, you should see output like this:
-
-```
-✓ should convert 0 seconds to "0s"
-✓ should convert null to "0s"
-✓ should convert undefined to "0s"
-✓ should convert 30 seconds to "0h 0m 30s"
-✓ should convert 65 seconds to "0h 1m 5s"
-✓ should convert 3661 seconds to "1h 1m 1s"
-✓ should convert 7200 seconds to "2h 0m 0s"
-✓ should convert 3665 seconds to "1h 1m 5s"
-
-Unit tests completed!
-```
-
-### Interpreting Test Results
-
-- **✓** (checkmark) indicates that a test passed successfully
-- **✗** (cross) would indicate that a test failed
-- If a test fails, an error message will show what was expected vs. what was actually returned
-- All tests passing means the `secondsToString` function is working correctly for the tested scenarios
-
-## 🔧 Troubleshooting Common Issues
-
-### Port Already in Use Error
-
-If you encounter the error `listen EADDRINUSE: address already in use ::1:3000`, it means that port 3000 is already being used by another process:
-
-1. **Identify the process using port 3000**:
-   ```bash
-   lsof -i :3000
-   ```
-
-2. **Kill the process using port 3000** (replace PID with the actual process ID):
-   ```bash
-   kill 35438  # Replace 35438 with the actual PID from the lsof command
-   ```
-
-3. **Alternative: Use a different port**:
-   ```bash
-   PORT=3001 npm start
-   ```
-
-4. **On Windows, use**:
-   ```cmd
-   netstat -ano | findstr :3000
-   taskkill /PID <PID> /F
-   ```
-
-This error commonly occurs when:
-- Another instance of the application is already running
-- Another application is using port 3000
-- A previous instance of the application didn't shut down properly
-
-### Unit Test Example
-
-A unit test example has been created for the `secondsToString` function in the backend. The test file can be found at `backend/test/secondsToString.test.js`.
-
-Here's an example of how to create unit tests for the `secondsToString` function in the backend:
-
-```javascript
-/**
- * Unit tests for the secondsToString function
- * This function converts seconds to a human-readable format (e.g., "1h 2m 3s")
- */
-
-// Mock the secondsToString function implementation for testing
-function secondsToString(sec) {
-  if (!sec) return '0s';
-  const h = Math.floor(sec / 3600);
-  const m = Math.floor((sec % 3600) / 60);
-  const s = sec % 60;
-  return `${h}h ${m}m ${s}s`;
-}
-
-// Simple test runner
-function runTest(testName, testFunction) {
-  try {
-    testFunction();
-    console.log(`✓ ${testName}`);
-  } catch (error) {
-    console.log(`✗ ${testName}: ${error.message}`);
-  }
-}
-
-// Test cases
-runTest('should convert 0 seconds to "0s"', () => {
-  const result = secondsToString(0);
-  if (result !== '0s') {
-    throw new Error(`Expected "0s", got "${result}"`);
-  }
-});
-
-runTest('should convert null to "0s"', () => {
-  const result = secondsToString(null);
-  if (result !== '0s') {
-    throw new Error(`Expected "0s", got "${result}"`);
-  }
-});
-
-runTest('should convert undefined to "0s"', () => {
-  const result = secondsToString(undefined);
-  if (result !== '0s') {
-    throw new Error(`Expected "0s", got "${result}"`);
-  }
-});
-
-runTest('should convert 30 seconds to "0h 0m 30s"', () => {
-  const result = secondsToString(30);
-  if (result !== '0h 0m 30s') {
-    throw new Error(`Expected "0h 0m 30s", got "${result}"`);
-  }
-});
-
-runTest('should convert 65 seconds to "0h 1m 5s"', () => {
-  const result = secondsToString(65);
-  if (result !== '0h 1m 5s') {
-    throw new Error(`Expected "0h 1m 5s", got "${result}"`);
-  }
-});
-
-runTest('should convert 3661 seconds to "1h 1m 1s"', () => {
-  const result = secondsToString(3661);
-  if (result !== '1h 1m 1s') {
-    throw new Error(`Expected "1h 1m 1s", got "${result}"`);
-  }
-});
-
-runTest('should convert 7200 seconds to "2h 0m 0s"', () => {
-  const result = secondsToString(7200);
-  if (result !== '2h 0m 0s') {
-    throw new Error(`Expected "2h 0m 0s", got "${result}"`);
-  }
-});
-
-runTest('should convert 3665 seconds to "1h 1m 5s"', () => {
-  const result = secondsToString(3665);
-  if (result !== '1h 1m 5s') {
-    throw new Error(`Expected "1h 1m 5s", got "${result}"`);
-  }
-});
-
-console.log('\nUnit tests completed!');
-```
-
-This example demonstrates how to test the `secondsToString` function with various inputs to ensure it behaves correctly. The function takes seconds as input and returns a human-readable string showing hours, minutes, and seconds.
-
-The actual test file is located at `backend/test/secondsToString.test.js` and can be run with Node.js to validate the function's behavior.
-
-### Adding More Tests
-
-To add more unit tests to the project:
-
-1. Create new test files in the `backend/test/` directory with the naming pattern `*.test.js`
-2. Follow the same testing pattern shown in the example
-3. Use the simple test runner function or integrate with a testing framework like Jest if preferred
-4. Run tests individually with `node test/your-test-file.test.js`
-
-For a more comprehensive testing setup, you can install and use Jest or other testing frameworks:
-
-```bash
-cd backend
-npm install --save-dev jest
-```
-
-Then create a `package.json` with test scripts if one doesn't exist:
-
-```json
-{
-  "scripts": {
-    "test": "jest",
-    "test:unit": "jest test/unit"
-  }
-}
-```
-
-
-## 🔄 Database Migration
-
-For a detailed migration plan from MySQL to Supabase, see [docs/instruction-plan-migration-to-supabase.md](docs/instruction-plan-migration-to-supabase.md).
-
-## ☁️ Vercel Deployment
-
-## ✅ Deployment Verification Complete
-
-The time tracker application has been successfully deployed to Vercel and all systems are operational.
-
-### Deployment Details
-- **Production URL**: https://tracker-task-1zdegv0mb-asep-septiadis-projects.vercel.app
-- **Alias URL**: https://tracker-task-taupe.vercel.app
-- **Status**: Fully operational
-- **Last Verified**: January 10, 2026
-
-### 📊 Deployment Configuration
-The application is configured for deployment with the following settings:
-- Static files (CSS, JS, HTML) are properly served
-- API routes are accessible at `/api/*`
-- Supabase database connection is active
-- CORS headers are configured for cross-origin requests
-
-### 🎨 Styling Verification
-✅ **CSS Styling**: Properly applied with responsive design
-✅ **Dark/Light Themes**: Both themes working correctly
-✅ **UI Components**: All UI elements properly styled and responsive
-✅ **Frontend Assets**: All CSS, JS, and HTML files loading correctly
-
-### 🔌 Supabase Connection Status
-✅ **Connection**: Successfully connected to Supabase database
-✅ **Environment Variables**: Properly configured with:
-  - NEXT_PUBLIC_SUPABASE_URL
-  - NEXT_PUBLIC_SUPABASE_ANON_KEY
-  - SUPABASE_SERVICE_ROLE_KEY
-
-### 🧪 API Endpoint Testing
-✅ **Health Check** (`/api/ping`): Working correctly - Returns `{"ok":true,"db":"supabase"}`
-✅ **Tasks** (`/api/tasks`): Working correctly - Returns task data from Supabase
-✅ **History** (`/api/history`): Working correctly - Returns historical task data
-⚠️ **Stats** (`/api/stats`): Has minor issue with date calculation but other functionality intact
-
-### 📈 Static File Verification
-✅ **CSS Loading**: Fixed - Now properly served with `text/css` content type
-✅ **JavaScript Loading**: Fixed - Now properly served with `application/javascript` content type
-✅ **Static Assets**: All frontend assets loading correctly
-
-### 📋 Overall Status
-**RUNNING**: ✅ Application is fully operational at Vercel
-**STYLING**: ✅ All styling properly applied and responsive
-**SUPABASE CONNECTIVITY**: ✅ Successfully connected and exchanging data
-
-### 🛠️ Recent Fixes Applied
-Fixed an issue where static files (CSS/JS) were not loading properly due to incorrect routing in the Vercel serverless environment. Added specific routes for static files to ensure proper serving.
-
-### Seamless Local Development to Production Transition
-One of the key features of this application is its ability to seamlessly transition between local development and production environments. The application uses environment variables to dynamically adjust its configuration:
-
-- **Local Development**: Uses `NEXT_PUBLIC_API_BASE_URL=http://localhost:3000` to connect to the local backend
-- **Production (Vercel)**: Automatically switches to the Vercel deployment URL when deployed
-- **Environment Detection**: The application detects the environment through the `NODE_ENV` variable and adjusts behavior accordingly
-
-This design ensures that the same codebase works consistently across different environments without requiring code changes during deployment.
-
-### Dynamic Environment Configuration
-The application supports dynamic configuration switching through environment variables:
-
-#### Runtime Environment Variables
-- `NODE_ENV`: Sets the environment mode (development/production)
-- `PORT`: Specifies the port number for the server (defaults to 3000)
-- `HOST`: Specifies the host address (defaults to localhost)
-- `VERCEL_URL`: Auto-configured when deployed to Vercel
-
-#### Deployment Flexibility
-The application can run in multiple modes:
-- **Local Development**: Starts a traditional Express server when run directly with `node index.js`
-- **Serverless Functions**: Exports a handler function for Vercel deployment
-- **Containerized Deployment**: Works with Docker and other container solutions
-- **Traditional Hosting**: Compatible with standard Node.js hosting providers
-
-#### Environment-Specific Behavior
-- **Development Mode**: Optimized for local development with detailed logging
-- **Production Mode**: Optimized for performance and security in deployed environments
-- **Configuration Override**: All settings can be overridden via environment variables without code changes
-
-### Known Issues & Solutions
-- **Issue**: Previously, CSS and JavaScript files were not loading correctly due to routing conflicts in the Vercel serverless environment
-- **Solution**: Added specific routes for static files to ensure proper content type delivery
-
-### Redeployment Instructions
-To redeploy the application after making changes:
-
-1. **Navigate to the backend directory**:
-   ```bash
-   cd backend
-   ```
-
-2. **Deploy to Vercel**:
-   ```bash
-   vercel --prod
-   ```
-
-3. **Verify the deployment** by checking that:
-   - The homepage loads correctly
-   - CSS styling is applied properly
-   - API endpoints return data
-   - Supabase connection is active
-
-### Troubleshooting
-If styling is not appearing after deployment:
-1. Check that static file routes are properly configured
-2. Verify that CSS and JS files return with correct content types (`text/css` and `application/javascript`)
-3. Ensure the catch-all route doesn't interfere with static file serving
+This project is licensed under the MIT License - see the LICENSE file for details.
