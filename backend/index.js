@@ -75,7 +75,7 @@ if (require.main === module) {
       : `http://${HOST}:${PORT}`;
 
     console.log(`✅ Server running on port ${PORT}`);
-    console.log(`Environment: ${NODE_ENV}`);
+    console.log(`Environment: ${NODE_ENV}`);  
     console.log(`API Base URL: ${baseUrl}`);
     console.log('Press Ctrl+C to stop the server');
   });
