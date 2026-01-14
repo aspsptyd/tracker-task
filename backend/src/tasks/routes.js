@@ -10,6 +10,7 @@ const {
 const { getStats } = require('../tasks/statsController');
 const { getHistory } = require('../tasks/historyController');
 const { createSession, updateSession, deleteSession } = require('../sessions/controller');
+const { startRunningTask, stopRunningTask, getRunningTasks } = require('../runningTasks/controller');
 
 const router = express.Router();
 
@@ -145,6 +146,45 @@ router.get('/history', authenticateUser, async (req, res) => {
       console.error(error);
     }
     res.status(500).json({ error: 'Failed to fetch history data' });
+  }
+});
+
+// Start a running task
+router.post('/tasks/:id/start', authenticateUser, async (req, res) => {
+  try {
+    const result = await startRunningTask(req.params.id, req.userId);
+    res.json(result);
+  } catch (error) {
+    if (process.env.NODE_ENV !== 'production') {
+      console.error(error);
+    }
+    res.status(400).json({ error: error.message });
+  }
+});
+
+// Stop a running task
+router.post('/tasks/:id/stop', authenticateUser, async (req, res) => {
+  try {
+    const result = await stopRunningTask(req.params.id, req.userId);
+    res.json(result);
+  } catch (error) {
+    if (process.env.NODE_ENV !== 'production') {
+      console.error(error);
+    }
+    res.status(400).json({ error: error.message });
+  }
+});
+
+// Get running tasks for the user
+router.get('/running-tasks', authenticateUser, async (req, res) => {
+  try {
+    const runningTasks = await getRunningTasks(req.userId);
+    res.json(runningTasks);
+  } catch (error) {
+    if (process.env.NODE_ENV !== 'production') {
+      console.error(error);
+    }
+    res.status(500).json({ error: 'Failed to fetch running tasks' });
   }
 });
 

@@ -237,8 +237,16 @@ function getUserInfo() {
 function logout() {
   localStorage.removeItem('authToken');
   localStorage.removeItem('loginTime'); // Also remove login time when logging out
+  localStorage.removeItem('tt_active'); // Clear running task state when logging out
   // Stop session timeout checker when logging out
   stopSessionTimeoutChecker();
+  // Reset running state variables
+  runningTaskId = null;
+  runningStart = null;
+  if (runningInterval) {
+    clearInterval(runningInterval);
+    runningInterval = null;
+  }
   updateAuthUI();
   // Reload the page to reset the app state
   window.location.reload();
@@ -365,9 +373,8 @@ async function loadStats(){
     if (statTotalDuration) statTotalDuration.textContent = `Total keseluruhan: ${stats.today.total_accumulated_readable || '0h 0m 0s'}`;
     if (statTotalWeek) statTotalWeek.textContent = stats.week.count || 0;
 
-    // Task Running is handled by client state
-    const running = loadRunningFromStorage();
-    if (statTaskRunning) statTaskRunning.textContent = running ? '1' : '0';
+    // Task Running now comes from the API stats (global count for user)
+    if (statTaskRunning) statTaskRunning.textContent = stats.running?.count || 0;
   } catch(e) {
     console.error('Failed to load stats', e);
   }
@@ -634,9 +641,8 @@ function refreshRunningUI(){
     }
   });
 
-  // Update running stat
-  const runningStat = document.getElementById('statTaskRunning');
-  if (runningStat) runningStat.textContent = runningTaskId ? '1' : '0';
+  // The running stat element is updated in loadStats() from the API
+  // refreshRunningUI() focuses on the UI elements for the running task card itself
 }
 
 async function toggleTaskStatus(taskId, currentStatus) {
@@ -667,18 +673,44 @@ async function toggleTaskStatus(taskId, currentStatus) {
 }
 
 async function startTimerFor(taskId){
-  // if another running, prevent
+  // if another task is running, ask user if they want to stop it and start the new one
   if (runningTaskId && String(runningTaskId) !== String(taskId)){
-    return alert('Stop the currently running task first');
-  }
-  runningTaskId = String(taskId);
-  runningStart = new Date();
-  saveRunningToStorage();
-  startIntervalFor(runningTaskId);
-  refreshRunningUI();
+    const shouldStopCurrent = confirm('You have another task running. Do you want to stop it and start this task instead?');
+    if (!shouldStopCurrent) {
+      return; // User chose not to stop the current task
+    }
 
-  // Move the running task to the top immediately after starting
-  moveTaskToTop(taskId);
+    // Stop the currently running task first
+    try {
+      await api(`/api/tasks/${runningTaskId}/stop`, { method: 'POST' });
+      clearInterval(runningInterval);
+      runningInterval = null;
+      runningTaskId = null;
+      runningStart = null;
+      saveRunningToStorage();
+    } catch (error) {
+      console.error('Error stopping current task:', error);
+      alert('Failed to stop current task: ' + error.message);
+      return;
+    }
+  }
+
+  try {
+    // Call the API to start the running task in the database
+    await api(`/api/tasks/${taskId}/start`, { method: 'POST' });
+
+    runningTaskId = String(taskId);
+    runningStart = new Date();
+    saveRunningToStorage();
+    startIntervalFor(runningTaskId);
+    refreshRunningUI();
+
+    // Move the running task to the top immediately after starting
+    moveTaskToTop(taskId);
+  } catch (error) {
+    console.error('Error starting task:', error);
+    alert('Failed to start task: ' + error.message);
+  }
 }
 
 function moveTaskToTop(taskId) {
@@ -698,6 +730,10 @@ async function stopTimerFor(taskId){
   const startIso = runningStart.toISOString();
   const endIso = new Date().toISOString();
   try{
+    // First, stop the running task in the database
+    await api(`/api/tasks/${taskId}/stop`, { method: 'POST' });
+
+    // Then save the session
     await api(`/api/tasks/${taskId}/sessions`, { method: 'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ start_time: startIso, end_time: endIso }) });
     clearInterval(runningInterval); runningInterval = null;
     const elapsed = new Date(endIso) - runningStart;
@@ -711,9 +747,47 @@ async function stopTimerFor(taskId){
   }
 }
 
-// resume running if present
-const resumed = loadRunningFromStorage();
-if (resumed){ runningTaskId = String(resumed.taskId); runningStart = resumed.start; startIntervalFor(runningTaskId); }
+// Function to restore running state from API
+async function restoreRunningState() {
+  try {
+    // First, try to get running tasks from the API
+    const runningTasks = await api('/api/running-tasks');
+
+    if (runningTasks && runningTasks.length > 0) {
+      // If there's a running task in the database, use it
+      const runningTask = runningTasks[0]; // User can only have one running task
+      runningTaskId = String(runningTask.task_id);
+      runningStart = new Date(runningTask.start_time);
+      startIntervalFor(runningTaskId);
+
+      // Also save to localStorage for consistency
+      localStorage.setItem('tt_active', JSON.stringify({
+        taskId: runningTask.task_id,
+        start: runningTask.start_time
+      }));
+    } else {
+      // If no running task in DB, try to restore from localStorage
+      const resumed = loadRunningFromStorage();
+      if (resumed) {
+        runningTaskId = String(resumed.taskId);
+        runningStart = resumed.start;
+        startIntervalFor(runningTaskId);
+      }
+    }
+  } catch (error) {
+    console.error('Error restoring running state from API:', error);
+    // Fallback to localStorage if API fails
+    const resumed = loadRunningFromStorage();
+    if (resumed) {
+      runningTaskId = String(resumed.taskId);
+      runningStart = resumed.start;
+      startIntervalFor(runningTaskId);
+    }
+  }
+}
+
+// Restore running state when page loads
+restoreRunningState();
 
 document.getElementById('taskForm').addEventListener('submit', async (e) =>{
   e.preventDefault();

@@ -1,5 +1,6 @@
 const { createClient } = require('@supabase/supabase-js');
 const { secondsToString } = require('../utils/format');
+const { getRunningTaskCount } = require('../runningTasks/controller');
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -175,6 +176,9 @@ async function getStats(userId = null) {
       weekCount = uniqueWeekTaskIds.length;
     }
 
+    // Get count of running tasks for this user
+    const runningCount = await getRunningTaskCount(userId);
+
     return {
       today: {
         count: filteredTodaySessions ? filteredTodaySessions.length : 0, // Number of sessions today
@@ -185,6 +189,9 @@ async function getStats(userId = null) {
       },
       week: {
         count: weekCount
+      },
+      running: {
+        count: runningCount
       }
     };
   } catch (err) {
