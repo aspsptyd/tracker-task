@@ -308,8 +308,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // Small frontend module to manage tasks and sessions
 // Configure the backend API URL - defaults to current domain but can be overridden
-// For GitHub Pages deployment, you can set window.BACKEND_API_URL before loading app.js
-const BACKEND_API_URL = (window.BACKEND_API_URL || '').replace(/\/$/, ''); // Remove trailing slash if present
+// For GitHub Pages or external deployments, you can set window.BACKEND_API_URL before loading app.js
+const BACKEND_API_URL = (window.BACKEND_API_URL || '').replace(/\/$/, '') || ''; // Remove trailing slash if present, default to empty string (same origin)
 
 async function api(path, opts = {}){
   // Add authorization header if user is logged in
@@ -317,24 +317,41 @@ async function api(path, opts = {}){
   if (token) {
     opts.headers = {
       ...opts.headers,
-      'Authorization': `Bearer ${token}`
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json' // Ensure Content-Type is set for all requests
+    };
+  } else {
+    // Ensure Content-Type is set even without auth
+    opts.headers = {
+      ...opts.headers,
+      'Content-Type': 'application/json'
     };
   }
 
-  const res = await fetch(BACKEND_API_URL + path, opts);
-  if (!res.ok) {
-    // Attempt to get error message from response body
-    let errorMessage = await res.text();
-    try {
-      // If the response is JSON, parse it to get a more meaningful error message
-      const errorJson = JSON.parse(errorMessage);
-      errorMessage = errorJson.message || errorJson.error || errorMessage;
-    } catch (e) {
-      // If response is not JSON, use the plain text error
+  try {
+    const res = await fetch(BACKEND_API_URL + path, {
+      ...opts,
+      credentials: 'same-origin' // Include credentials for same-origin requests
+    });
+
+    if (!res.ok) {
+      // Attempt to get error message from response body
+      let errorMessage = await res.text();
+      try {
+        // If the response is JSON, parse it to get a more meaningful error message
+        const errorJson = JSON.parse(errorMessage);
+        errorMessage = errorJson.message || errorJson.error || errorMessage;
+      } catch (e) {
+        // If response is not JSON, use the plain text error
+      }
+      throw new Error(errorMessage);
     }
-    throw new Error(errorMessage);
+    return res.json();
+  } catch (error) {
+    // Log the error for debugging but re-throw it
+    console.error(`API call failed: ${path}`, error);
+    throw error;
   }
-  return res.json();
 }
 
 function fmtDate(d){
@@ -368,96 +385,141 @@ async function loadStats(){
     const statTaskRunning = document.getElementById('statTaskRunning');
 
     // Update Total Task Today to show the time worked today (the main focus)
-    if (statTotalToday) statTotalToday.textContent = stats.today.duration_readable || '0h 0m 0s';
+    if (statTotalToday) statTotalToday.textContent = stats.today?.duration_readable || '0h 0m 0s';
     // Update the duration field to show total accumulated time across all tasks
-    if (statTotalDuration) statTotalDuration.textContent = `Total keseluruhan: ${stats.today.total_accumulated_readable || '0h 0m 0s'}`;
-    if (statTotalWeek) statTotalWeek.textContent = stats.week.count || 0;
+    if (statTotalDuration) statTotalDuration.textContent = `Total keseluruhan: ${stats.today?.total_accumulated_readable || '0h 0m 0s'}`;
+    if (statTotalWeek) statTotalWeek.textContent = stats.week?.count || 0;
 
     // Task Running now comes from the API stats (global count for user)
     if (statTaskRunning) statTaskRunning.textContent = stats.running?.count || 0;
   } catch(e) {
     console.error('Failed to load stats', e);
+    // Set default values when API fails to ensure consistent UI
+    const statTotalToday = document.getElementById('statTotalToday');
+    const statTotalDuration = document.getElementById('statTotalDuration');
+    const statTotalWeek = document.getElementById('statTotalWeek');
+    const statTaskRunning = document.getElementById('statTaskRunning');
+
+    if (statTotalToday) statTotalToday.textContent = '0h 0m 0s';
+    if (statTotalDuration) statTotalDuration.textContent = 'Total keseluruhan: 0h 0m 0s';
+    if (statTotalWeek) statTotalWeek.textContent = '0';
+    if (statTaskRunning) statTaskRunning.textContent = '0';
   }
 }
 
 async function loadTasks(){
-  const tasks = await api('/api/tasks');
-  const activeContainer = document.getElementById('activeTasks');
-  const completedContainer = document.getElementById('completedTasks');
+  try {
+    const tasks = await api('/api/tasks');
+    const activeContainer = document.getElementById('activeTasks');
+    const completedContainer = document.getElementById('completedTasks');
 
-  activeContainer.innerHTML = '';
-  completedContainer.innerHTML = '';
-
-  // Sort tasks to put running task at the top
-  const running = loadRunningFromStorage();
-  const sortedTasks = [...tasks].sort((a, b) => {
-    // If a task is running, put it at the top
-    if (running && String(a.id) === String(running.taskId)) return -1;
-    if (running && String(b.id) === String(running.taskId)) return 1;
-    // Otherwise maintain original order
-    return 0;
-  });
-
-  sortedTasks.forEach(t => {
-    const card = document.createElement('div');
-    card.className = 'card';
-    card.dataset.id = t.id;
-    card.dataset.status = t.status;
-
-    // Add status indicator class
-    if (t.status === 'completed') {
-      card.classList.add('completed');
+    if (!activeContainer || !completedContainer) {
+      console.error('Task containers not found');
+      return;
     }
 
-    card.innerHTML = `
-      <div class="card-left">
-        <div class="title">${t.title}</div>
-        <div class="meta">${t.total_duration_readable} • ${t.sessions_count} session(s)</div>
-        <div class="dates">
-          <small>Created: ${fmtDate(t.created_at)}</small>
-          ${t.completed_at ? `<small class="completed-date">Completed: ${fmtDate(t.completed_at)}</small>` : ''}
+    activeContainer.innerHTML = '';
+    completedContainer.innerHTML = '';
+
+    // Sort tasks to put running task at the top
+    const running = loadRunningFromStorage();
+    const sortedTasks = [...tasks].sort((a, b) => {
+      // If a task is running, put it at the top
+      if (running && String(a.id) === String(running.taskId)) return -1;
+      if (running && String(b.id) === String(running.taskId)) return 1;
+      // Otherwise maintain original order
+      return 0;
+    });
+
+    sortedTasks.forEach(t => {
+      const card = document.createElement('div');
+      card.className = 'card';
+      card.dataset.id = t.id;
+      card.dataset.status = t.status;
+
+      // Add status indicator class
+      if (t.status === 'completed') {
+        card.classList.add('completed');
+      }
+
+      // Sanitize title and description to prevent XSS
+      const sanitizedTitle = t.title ? t.title.toString().replace(/[<>&]/g, (match) => {
+        return match === '<' ? '&lt;' : match === '>' ? '&gt;' : '&amp;';
+      }) : '';
+
+      const sanitizedDescription = t.description ? t.description.toString().replace(/[<>&]/g, (match) => {
+        return match === '<' ? '&lt;' : match === '>' ? '&gt;' : '&amp;';
+      }) : '';
+
+      card.innerHTML = `
+        <div class="card-left">
+          <div class="title">${sanitizedTitle}</div>
+          <div class="meta">${t.total_duration_readable || '0h 0m 0s'} • ${t.sessions_count || 0} session(s)</div>
+          <div class="dates">
+            <small>Created: ${fmtDate(t.created_at)}</small>
+            ${t.completed_at ? `<small class="completed-date">Completed: ${fmtDate(t.completed_at)}</small>` : ''}
+          </div>
         </div>
-      </div>
-      <div class="actions">
-        <div class="controls">
-          <div class="timer pill" data-timer-id="${t.id}">00:00:00</div>
-          <button class="startBtn" data-id="${t.id}" ${t.status === 'completed' ? 'style="display:none"' : ''}>Start</button>
-          <button class="stopBtn" data-id="${t.id}" style="display:none">Stop</button>
+        <div class="actions">
+          <div class="controls">
+            <div class="timer pill" data-timer-id="${t.id}">00:00:00</div>
+            <button class="startBtn" data-id="${t.id}" ${t.status === 'completed' ? 'style="display:none"' : ''}>Start</button>
+            <button class="stopBtn" data-id="${t.id}" style="display:none">Stop</button>
+          </div>
+          <div style="display:flex;gap:8px;margin-left:8px">
+            <button class="statusBtn" data-id="${t.id}" data-status="${t.status === 'completed' ? 'active' : 'completed'}" ${(t.sessions_count === 0 && t.status !== 'completed') ? 'style="display:none"' : ''}>
+              ${t.status === 'completed' ? 'Not Done' : 'Finish'}
+            </button>
+            <button data-id="${t.id}" class="view">View</button>
+            <button data-id="${t.id}" class="edit">Edit</button>
+            <button data-id="${t.id}" class="del">Delete</button>
+          </div>
         </div>
-        <div style="display:flex;gap:8px;margin-left:8px">
-          <button class="statusBtn" data-id="${t.id}" data-status="${t.status === 'completed' ? 'active' : 'completed'}" ${(t.sessions_count === 0 && t.status !== 'completed') ? 'style="display:none"' : ''}>
-            ${t.status === 'completed' ? 'Not Done' : 'Finish'}
-          </button>
-          <button data-id="${t.id}" class="view">View</button>
-          <button data-id="${t.id}" class="edit">Edit</button>
-          <button data-id="${t.id}" class="del">Delete</button>
-        </div>
-      </div>
-    `;
+      `;
 
-    // attach handlers for view/edit/delete
-    card.querySelector('.view').addEventListener('click', ()=> openDetail(t.id));
-    card.querySelector('.edit').addEventListener('click', ()=> editTaskPrompt(t.id));
-    card.querySelector('.del').addEventListener('click', ()=> deleteTaskConfirm(t.id));
+      // attach handlers for view/edit/delete
+      const viewBtn = card.querySelector('.view');
+      const editBtn = card.querySelector('.edit');
+      const delBtn = card.querySelector('.del');
+      const startBtn = card.querySelector('.startBtn');
+      const stopBtn = card.querySelector('.stopBtn');
+      const statusBtn = card.querySelector('.statusBtn');
 
-    // start/stop handlers
-    card.querySelector('.startBtn').addEventListener('click', ()=> startTimerFor(t.id));
-    card.querySelector('.stopBtn').addEventListener('click', ()=> stopTimerFor(t.id));
+      if (viewBtn) viewBtn.addEventListener('click', ()=> openDetail(t.id));
+      if (editBtn) editBtn.addEventListener('click', ()=> editTaskPrompt(t.id));
+      if (delBtn) delBtn.addEventListener('click', ()=> deleteTaskConfirm(t.id));
 
-    // status toggle handler
-    card.querySelector('.statusBtn').addEventListener('click', ()=> toggleTaskStatus(t.id, t.status));
+      // start/stop handlers
+      if (startBtn) startBtn.addEventListener('click', ()=> startTimerFor(t.id));
+      if (stopBtn) stopBtn.addEventListener('click', ()=> stopTimerFor(t.id));
 
-    // Add to appropriate container based on status
-    if (t.status === 'completed') {
-      completedContainer.appendChild(card);
-    } else {
-      activeContainer.appendChild(card);
+      // status toggle handler
+      if (statusBtn) statusBtn.addEventListener('click', ()=> toggleTaskStatus(t.id, t.status));
+
+      // Add to appropriate container based on status
+      if (t.status === 'completed') {
+        completedContainer.appendChild(card);
+      } else {
+        activeContainer.appendChild(card);
+      }
+    });
+
+    // Refresh UI according to running state
+    refreshRunningUI();
+    loadStats();
+  } catch (error) {
+    console.error('Failed to load tasks', error);
+    // Show error message to user
+    const activeContainer = document.getElementById('activeTasks');
+    const completedContainer = document.getElementById('completedTasks');
+
+    if (activeContainer) {
+      activeContainer.innerHTML = '<div class="error-message">Failed to load active tasks. Please refresh the page.</div>';
     }
-  });
-
-  // Refresh UI according to running state
-  refreshRunningUI();
-  loadStats();
+    if (completedContainer) {
+      completedContainer.innerHTML = '<div class="error-message">Failed to load completed tasks. Please refresh the page.</div>';
+    }
+  }
 }
 
 async function openDetail(taskId){
@@ -774,6 +836,9 @@ async function restoreRunningState() {
         startIntervalFor(runningTaskId);
       }
     }
+
+    // Refresh UI after restoring state
+    refreshRunningUI();
   } catch (error) {
     console.error('Error restoring running state from API:', error);
     // Fallback to localStorage if API fails
@@ -783,6 +848,9 @@ async function restoreRunningState() {
       runningStart = resumed.start;
       startIntervalFor(runningTaskId);
     }
+
+    // Refresh UI after restoring state (even if there was an error)
+    refreshRunningUI();
   }
 }
 
@@ -830,9 +898,15 @@ async function loadHistoryTasks() {
   try {
     const historyData = await api('/api/history');
     const historyContainer = document.getElementById('historyTasks');
+
+    if (!historyContainer) {
+      console.error('History container not found');
+      return;
+    }
+
     historyContainer.innerHTML = '';
 
-    if (historyData.length === 0) {
+    if (!historyData || historyData.length === 0) {
       historyContainer.innerHTML = '<p>No task history available.</p>';
       return;
     }
@@ -843,11 +917,17 @@ async function loadHistoryTasks() {
 
       const dateLabel = document.createElement('div');
       dateLabel.className = `date-label ${group.dateLabel === 'Hari Ini' ? 'hari-ini' : ''}`;
-      dateLabel.textContent = group.dateLabel;
+      // Sanitize the date label to prevent XSS
+      dateLabel.textContent = group.dateLabel ? group.dateLabel.toString().replace(/[<>&]/g, (match) => {
+        return match === '<' ? '&lt;' : match === '>' ? '&gt;' : '&amp;';
+      }) : '';
 
       const progress = document.createElement('div');
       progress.className = 'progress';
-      progress.textContent = group.progress;
+      // Sanitize the progress text to prevent XSS
+      progress.textContent = group.progress ? group.progress.toString().replace(/[<>&]/g, (match) => {
+        return match === '<' ? '&lt;' : match === '>' ? '&gt;' : '&amp;';
+      }) : '';
 
       dateGroup.appendChild(dateLabel);
       dateGroup.appendChild(progress);
@@ -861,7 +941,10 @@ async function loadHistoryTasks() {
 
         const taskTitle = document.createElement('div');
         taskTitle.className = 'task-title';
-        taskTitle.textContent = task.title;
+        // Sanitize the task title to prevent XSS
+        taskTitle.textContent = task.title ? task.title.toString().replace(/[<>&]/g, (match) => {
+          return match === '<' ? '&lt;' : match === '>' ? '&gt;' : '&amp;';
+        }) : '';
 
         taskItem.appendChild(taskTitle);
         historyContainer.appendChild(taskItem);
@@ -869,6 +952,10 @@ async function loadHistoryTasks() {
     });
   } catch (error) {
     console.error('Failed to load history tasks:', error);
+    const historyContainer = document.getElementById('historyTasks');
+    if (historyContainer) {
+      historyContainer.innerHTML = '<p>Failed to load task history. Please refresh the page.</p>';
+    }
   }
 }
 

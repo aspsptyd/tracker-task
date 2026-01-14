@@ -182,3 +182,20 @@ body.light .history-date-group .date-label {color: #0f172a;}
 body.light .history-date-group .progress {background: rgba(37,99,235,0.08); color: #0f172a;}
 body.light .history-date-group .date-label.hari-ini {color: #2563eb;}
 body.light .history-tasks .task-title {color: #0f172a;}
+
+/* Error message styling */
+.error-message {
+  padding: 12px;
+  background-color: #fee2e2;
+  color: #dc2626;
+  border-radius: 8px;
+  text-align: center;
+  margin: 10px 0;
+  border: 1px solid #fecaca;
+}
+
+body.light .error-message {
+  background-color: #fef2f2;
+  color: #b91c1c;
+  border: 1px solid #fecaca;
+}

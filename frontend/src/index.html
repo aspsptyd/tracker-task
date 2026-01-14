@@ -14,8 +14,17 @@
           <p class="subtitle">Track your time adjustment task and still evaluate to the best</p>
         </div>
         <div class="actions">
+          <div id="authControls" style="display: flex; gap: 10px; align-items: center;">
+            <a href="login.html" class="btn-secondary">Login</a>
+            <a href="register.html" class="btn-primary">Register</a>
+          </div>
           <button id="refresh">Refresh</button>
           <button id="themeToggle" aria-label="Toggle theme">Toggle Theme</button>
+          <div id="userMenu" style="display: none; align-items: center; gap: 10px;">
+            <span id="sessionTimer" style="font-size: 14px;"></span>
+            <span id="userName"></span>
+            <button id="logoutBtn" class="btn-secondary">Logout</button>
+          </div>
         </div>
       </header>
 
@@ -33,9 +42,9 @@
         <section class="content-area">
           <div class="stats-grid">
             <div class="stat-card">
-              <h3>Total Task Today</h3>
+              <h3>Total Hari Ini</h3>
               <div class="stat-value" id="statTotalToday">0</div>
-              <div class="stat-sub" id="statTotalDuration">0h 0m 0s</div>
+              <div class="stat-sub" id="statTotalDuration">Total keseluruhan: 0h 0m 0s</div>
             </div>
             <div class="stat-card">
               <h3>Task Running</h3>

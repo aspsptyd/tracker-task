@@ -1,12 +1,77 @@
 // Small frontend module to manage tasks and sessions
 // Configure the backend API URL - defaults to current domain but can be overridden
-// For GitHub Pages deployment, you can set window.BACKEND_API_URL before loading app.js
-const BACKEND_API_URL = (window.BACKEND_API_URL || '').replace(/\/$/, ''); // Remove trailing slash if present
+// For GitHub Pages or external deployments, you can set window.BACKEND_API_URL before loading app.js
+const BACKEND_API_URL = (window.BACKEND_API_URL || '').replace(/\/$/, '') || ''; // Remove trailing slash if present, default to empty string (same origin)
 
 async function api(path, opts = {}){
-  const res = await fetch(BACKEND_API_URL + path, opts);
-  if (!res.ok) throw new Error(await res.text());
-  return res.json();
+  // Add authorization header if user is logged in
+  const token = getAuthToken();
+  if (token) {
+    opts.headers = {
+      ...opts.headers,
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json' // Ensure Content-Type is set for all requests
+    };
+  } else {
+    // Ensure Content-Type is set even without auth
+    opts.headers = {
+      ...opts.headers,
+      'Content-Type': 'application/json'
+    };
+  }
+
+  try {
+    const res = await fetch(BACKEND_API_URL + path, {
+      ...opts,
+      credentials: 'same-origin' // Include credentials for same-origin requests
+    });
+    
+    if (!res.ok) {
+      // Attempt to get error message from response body
+      let errorMessage = await res.text();
+      try {
+        // If the response is JSON, parse it to get a more meaningful error message
+        const errorJson = JSON.parse(errorMessage);
+        errorMessage = errorJson.message || errorJson.error || errorMessage;
+      } catch (e) {
+        // If response is not JSON, use the plain text error
+      }
+      throw new Error(errorMessage);
+    }
+    return res.json();
+  } catch (error) {
+    // Log the error for debugging but re-throw it
+    console.error(`API call failed: ${path}`, error);
+    throw error;
+  }
+}
+
+// Authentication functions
+function getAuthToken() {
+  const tokenData = localStorage.getItem('authToken');
+  if (tokenData) {
+    try {
+      const parsed = JSON.parse(tokenData);
+      // The token might be stored as a simple string or as part of a user object
+      // First, check if it's a simple token string
+      if (typeof parsed === 'string') {
+        return parsed;
+      }
+      // If it's an object (like the user object returned from login),
+      // look for the access_token property which is the JWT token needed for authorization
+      return parsed.access_token || parsed.token || parsed.id_token || parsed.refresh_token || parsed.id;
+    } catch (e) {
+      // If parsing fails, return the raw value
+      return tokenData;
+    }
+  }
+  return null;
+}
+
+function isLoggedIn() {
+  const token = getAuthToken();
+  // A user is considered logged in if there's a token or user object stored
+  return !!token;
 }
 
 function fmtDate(d){
@@ -32,96 +97,149 @@ function secondsToHuman(sec){
 async function loadStats(){
   try {
     const stats = await api('/api/stats');
-    document.getElementById('statTotalToday').textContent = stats.today.count;
-    document.getElementById('statTotalDuration').textContent = stats.today.duration_readable;
-    document.getElementById('statTotalWeek').textContent = stats.week.count;
-    
-    // Task Running is handled by client state
-    const running = loadRunningFromStorage();
-    document.getElementById('statTaskRunning').textContent = running ? '1' : '0';
+
+    // Check if elements exist before trying to update them
+    const statTotalToday = document.getElementById('statTotalToday');
+    const statTotalDuration = document.getElementById('statTotalDuration');
+    const statTotalWeek = document.getElementById('statTotalWeek');
+    const statTaskRunning = document.getElementById('statTaskRunning');
+
+    // Update Total Task Today to show the time worked today (the main focus)
+    if (statTotalToday) statTotalToday.textContent = stats.today?.duration_readable || '0h 0m 0s';
+    // Update the duration field to show total accumulated time across all tasks
+    if (statTotalDuration) statTotalDuration.textContent = `Total keseluruhan: ${stats.today?.total_accumulated_readable || '0h 0m 0s'}`;
+    if (statTotalWeek) statTotalWeek.textContent = stats.week?.count || 0;
+
+    // Task Running now comes from the API stats (global count for user)
+    if (statTaskRunning) statTaskRunning.textContent = stats.running?.count || 0;
   } catch(e) {
     console.error('Failed to load stats', e);
+    // Set default values when API fails to ensure consistent UI
+    const statTotalToday = document.getElementById('statTotalToday');
+    const statTotalDuration = document.getElementById('statTotalDuration');
+    const statTotalWeek = document.getElementById('statTotalWeek');
+    const statTaskRunning = document.getElementById('statTaskRunning');
+
+    if (statTotalToday) statTotalToday.textContent = '0h 0m 0s';
+    if (statTotalDuration) statTotalDuration.textContent = 'Total keseluruhan: 0h 0m 0s';
+    if (statTotalWeek) statTotalWeek.textContent = '0';
+    if (statTaskRunning) statTaskRunning.textContent = '0';
   }
 }
 
 async function loadTasks(){
-  const tasks = await api('/api/tasks');
-  const activeContainer = document.getElementById('activeTasks');
-  const completedContainer = document.getElementById('completedTasks');
+  try {
+    const tasks = await api('/api/tasks');
+    const activeContainer = document.getElementById('activeTasks');
+    const completedContainer = document.getElementById('completedTasks');
 
-  activeContainer.innerHTML = '';
-  completedContainer.innerHTML = '';
-
-  // Sort tasks to put running task at the top
-  const running = loadRunningFromStorage();
-  const sortedTasks = [...tasks].sort((a, b) => {
-    // If a task is running, put it at the top
-    if (running && String(a.id) === String(running.taskId)) return -1;
-    if (running && String(b.id) === String(running.taskId)) return 1;
-    // Otherwise maintain original order
-    return 0;
-  });
-
-  sortedTasks.forEach(t => {
-    const card = document.createElement('div');
-    card.className = 'card';
-    card.dataset.id = t.id;
-    card.dataset.status = t.status;
-
-    // Add status indicator class
-    if (t.status === 'completed') {
-      card.classList.add('completed');
+    if (!activeContainer || !completedContainer) {
+      console.error('Task containers not found');
+      return;
     }
 
-    card.innerHTML = `
-      <div class="card-left">
-        <div class="title">${t.title}</div>
-        <div class="meta">${t.total_duration_readable} • ${t.sessions_count} session(s)</div>
-        <div class="dates">
-          <small>Created: ${fmtDate(t.created_at)}</small>
-          ${t.completed_at ? `<small class="completed-date">Completed: ${fmtDate(t.completed_at)}</small>` : ''}
+    activeContainer.innerHTML = '';
+    completedContainer.innerHTML = '';
+
+    // Sort tasks to put running task at the top
+    const running = loadRunningFromStorage();
+    const sortedTasks = [...tasks].sort((a, b) => {
+      // If a task is running, put it at the top
+      if (running && String(a.id) === String(running.taskId)) return -1;
+      if (running && String(b.id) === String(running.taskId)) return 1;
+      // Otherwise maintain original order
+      return 0;
+    });
+
+    sortedTasks.forEach(t => {
+      const card = document.createElement('div');
+      card.className = 'card';
+      card.dataset.id = t.id;
+      card.dataset.status = t.status;
+
+      // Add status indicator class
+      if (t.status === 'completed') {
+        card.classList.add('completed');
+      }
+
+      // Sanitize title and description to prevent XSS
+      const sanitizedTitle = t.title ? t.title.toString().replace(/[<>&]/g, (match) => {
+        return match === '<' ? '&lt;' : match === '>' ? '&gt;' : '&amp;';
+      }) : '';
+      
+      const sanitizedDescription = t.description ? t.description.toString().replace(/[<>&]/g, (match) => {
+        return match === '<' ? '&lt;' : match === '>' ? '&gt;' : '&amp;';
+      }) : '';
+
+      card.innerHTML = `
+        <div class="card-left">
+          <div class="title">${sanitizedTitle}</div>
+          <div class="meta">${t.total_duration_readable || '0h 0m 0s'} • ${t.sessions_count || 0} session(s)</div>
+          <div class="dates">
+            <small>Created: ${fmtDate(t.created_at)}</small>
+            ${t.completed_at ? `<small class="completed-date">Completed: ${fmtDate(t.completed_at)}</small>` : ''}
+          </div>
         </div>
-      </div>
-      <div class="actions">
-        <div class="controls">
-          <div class="timer pill" data-timer-id="${t.id}">00:00:00</div>
-          <button class="startBtn" data-id="${t.id}" ${t.status === 'completed' ? 'style="display:none"' : ''}>Start</button>
-          <button class="stopBtn" data-id="${t.id}" style="display:none">Stop</button>
+        <div class="actions">
+          <div class="controls">
+            <div class="timer pill" data-timer-id="${t.id}">00:00:00</div>
+            <button class="startBtn" data-id="${t.id}" ${t.status === 'completed' ? 'style="display:none"' : ''}>Start</button>
+            <button class="stopBtn" data-id="${t.id}" style="display:none">Stop</button>
+          </div>
+          <div style="display:flex;gap:8px;margin-left:8px">
+            <button class="statusBtn" data-id="${t.id}" data-status="${t.status === 'completed' ? 'active' : 'completed'}" ${(t.sessions_count === 0 && t.status !== 'completed') ? 'style="display:none"' : ''}>
+              ${t.status === 'completed' ? 'Not Done' : 'Finish'}
+            </button>
+            <button data-id="${t.id}" class="view">View</button>
+            <button data-id="${t.id}" class="edit">Edit</button>
+            <button data-id="${t.id}" class="del">Delete</button>
+          </div>
         </div>
-        <div style="display:flex;gap:8px;margin-left:8px">
-          <button class="statusBtn" data-id="${t.id}" data-status="${t.status === 'completed' ? 'active' : 'completed'}" ${(t.sessions_count === 0 && t.status !== 'completed') ? 'style="display:none"' : ''}>
-            ${t.status === 'completed' ? 'Not Done' : 'Finish'}
-          </button>
-          <button data-id="${t.id}" class="view">View</button>
-          <button data-id="${t.id}" class="edit">Edit</button>
-          <button data-id="${t.id}" class="del">Delete</button>
-        </div>
-      </div>
-    `;
+      `;
 
-    // attach handlers for view/edit/delete
-    card.querySelector('.view').addEventListener('click', ()=> openDetail(t.id));
-    card.querySelector('.edit').addEventListener('click', ()=> editTaskPrompt(t.id));
-    card.querySelector('.del').addEventListener('click', ()=> deleteTaskConfirm(t.id));
+      // attach handlers for view/edit/delete
+      const viewBtn = card.querySelector('.view');
+      const editBtn = card.querySelector('.edit');
+      const delBtn = card.querySelector('.del');
+      const startBtn = card.querySelector('.startBtn');
+      const stopBtn = card.querySelector('.stopBtn');
+      const statusBtn = card.querySelector('.statusBtn');
 
-    // start/stop handlers
-    card.querySelector('.startBtn').addEventListener('click', ()=> startTimerFor(t.id));
-    card.querySelector('.stopBtn').addEventListener('click', ()=> stopTimerFor(t.id));
+      if (viewBtn) viewBtn.addEventListener('click', ()=> openDetail(t.id));
+      if (editBtn) editBtn.addEventListener('click', ()=> editTaskPrompt(t.id));
+      if (delBtn) delBtn.addEventListener('click', ()=> deleteTaskConfirm(t.id));
 
-    // status toggle handler
-    card.querySelector('.statusBtn').addEventListener('click', ()=> toggleTaskStatus(t.id, t.status));
+      // start/stop handlers
+      if (startBtn) startBtn.addEventListener('click', ()=> startTimerFor(t.id));
+      if (stopBtn) stopBtn.addEventListener('click', ()=> stopTimerFor(t.id));
 
-    // Add to appropriate container based on status
-    if (t.status === 'completed') {
-      completedContainer.appendChild(card);
-    } else {
-      activeContainer.appendChild(card);
+      // status toggle handler
+      if (statusBtn) statusBtn.addEventListener('click', ()=> toggleTaskStatus(t.id, t.status));
+
+      // Add to appropriate container based on status
+      if (t.status === 'completed') {
+        completedContainer.appendChild(card);
+      } else {
+        activeContainer.appendChild(card);
+      }
+    });
+
+    // Refresh UI according to running state
+    refreshRunningUI();
+    loadStats();
+  } catch (error) {
+    console.error('Failed to load tasks', error);
+    // Show error message to user
+    const activeContainer = document.getElementById('activeTasks');
+    const completedContainer = document.getElementById('completedTasks');
+    
+    if (activeContainer) {
+      activeContainer.innerHTML = '<div class="error-message">Failed to load active tasks. Please refresh the page.</div>';
     }
-  });
-
-  // Refresh UI according to running state
-  refreshRunningUI();
-  loadStats();
+    if (completedContainer) {
+      completedContainer.innerHTML = '<div class="error-message">Failed to load completed tasks. Please refresh the page.</div>';
+    }
+  }
 }
 
 async function openDetail(taskId){
@@ -338,18 +456,61 @@ async function toggleTaskStatus(taskId, currentStatus) {
 }
 
 async function startTimerFor(taskId){
-  // if another running, prevent
+  // if another task is running, ask user if they want to stop it and start the new one
   if (runningTaskId && String(runningTaskId) !== String(taskId)){
-    return alert('Stop the currently running task first');
-  }
-  runningTaskId = String(taskId);
-  runningStart = new Date();
-  saveRunningToStorage();
-  startIntervalFor(runningTaskId);
-  refreshRunningUI();
+    const shouldStopCurrent = confirm('You have another task running. Do you want to stop it and start this task instead?');
+    if (!shouldStopCurrent) {
+      return; // User chose not to stop the current task
+    }
 
-  // Move the running task to the top immediately after starting
-  moveTaskToTop(taskId);
+    // Stop the currently running task first
+    try {
+      await api(`/api/tasks/${runningTaskId}/stop`, { method: 'POST' });
+
+      // Save the session for the currently running task
+      if (runningStart) {
+        const startIso = runningStart.toISOString();
+        const endIso = new Date().toISOString();
+        await api(`/api/tasks/${runningTaskId}/sessions`, { 
+          method: 'POST', 
+          headers:{'Content-Type':'application/json'}, 
+          body: JSON.stringify({ start_time: startIso, end_time: endIso }) 
+        });
+        
+        clearInterval(runningInterval);
+        runningInterval = null;
+        const elapsed = new Date(endIso) - runningStart;
+        runningTaskId = null; 
+        runningStart = null; 
+        saveRunningToStorage();
+        refreshRunningUI();
+        loadTasks();
+        loadHistoryTasks(); // Reload history tasks after session is saved
+        alert('Previous task session saved: ' + formatElapsed(elapsed));
+      }
+    } catch (error) {
+      console.error('Error stopping current task:', error);
+      alert('Failed to stop current task: ' + error.message);
+      return;
+    }
+  }
+
+  try {
+    // Call the API to start the running task in the database
+    await api(`/api/tasks/${taskId}/start`, { method: 'POST' });
+
+    runningTaskId = String(taskId);
+    runningStart = new Date();
+    saveRunningToStorage();
+    startIntervalFor(runningTaskId);
+    refreshRunningUI();
+
+    // Move the running task to the top immediately after starting
+    moveTaskToTop(taskId);
+  } catch (error) {
+    console.error('Error starting task:', error);
+    alert('Failed to start task: ' + error.message);
+  }
 }
 
 function moveTaskToTop(taskId) {
@@ -369,6 +530,10 @@ async function stopTimerFor(taskId){
   const startIso = runningStart.toISOString();
   const endIso = new Date().toISOString();
   try{
+    // First, stop the running task in the database
+    await api(`/api/tasks/${taskId}/stop`, { method: 'POST' });
+
+    // Then save the session
     await api(`/api/tasks/${taskId}/sessions`, { method: 'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ start_time: startIso, end_time: endIso }) });
     clearInterval(runningInterval); runningInterval = null;
     const elapsed = new Date(endIso) - runningStart;
@@ -382,9 +547,53 @@ async function stopTimerFor(taskId){
   }
 }
 
-// resume running if present
-const resumed = loadRunningFromStorage();
-if (resumed){ runningTaskId = String(resumed.taskId); runningStart = resumed.start; startIntervalFor(runningTaskId); }
+// Function to restore running state from API
+async function restoreRunningState() {
+  try {
+    // First, try to get running tasks from the API
+    const runningTasks = await api('/api/running-tasks');
+
+    if (runningTasks && runningTasks.length > 0) {
+      // If there's a running task in the database, use it
+      const runningTask = runningTasks[0]; // User can only have one running task
+      runningTaskId = String(runningTask.task_id);
+      runningStart = new Date(runningTask.start_time);
+      startIntervalFor(runningTaskId);
+
+      // Also save to localStorage for consistency
+      localStorage.setItem('tt_active', JSON.stringify({
+        taskId: runningTask.task_id,
+        start: runningTask.start_time
+      }));
+    } else {
+      // If no running task in DB, try to restore from localStorage
+      const resumed = loadRunningFromStorage();
+      if (resumed) {
+        runningTaskId = String(resumed.taskId);
+        runningStart = resumed.start;
+        startIntervalFor(runningTaskId);
+      }
+    }
+    
+    // Refresh UI after restoring state
+    refreshRunningUI();
+  } catch (error) {
+    console.error('Error restoring running state from API:', error);
+    // Fallback to localStorage if API fails
+    const resumed = loadRunningFromStorage();
+    if (resumed) {
+      runningTaskId = String(resumed.taskId);
+      runningStart = resumed.start;
+      startIntervalFor(runningTaskId);
+    }
+    
+    // Refresh UI after restoring state (even if there was an error)
+    refreshRunningUI();
+  }
+}
+
+// Restore running state when page loads
+restoreRunningState();
 
 document.getElementById('taskForm').addEventListener('submit', async (e) =>{
   e.preventDefault();
@@ -427,9 +636,15 @@ async function loadHistoryTasks() {
   try {
     const historyData = await api('/api/history');
     const historyContainer = document.getElementById('historyTasks');
+    
+    if (!historyContainer) {
+      console.error('History container not found');
+      return;
+    }
+    
     historyContainer.innerHTML = '';
 
-    if (historyData.length === 0) {
+    if (!historyData || historyData.length === 0) {
       historyContainer.innerHTML = '<p>No task history available.</p>';
       return;
     }
@@ -440,11 +655,17 @@ async function loadHistoryTasks() {
 
       const dateLabel = document.createElement('div');
       dateLabel.className = `date-label ${group.dateLabel === 'Hari Ini' ? 'hari-ini' : ''}`;
-      dateLabel.textContent = group.dateLabel;
+      // Sanitize the date label to prevent XSS
+      dateLabel.textContent = group.dateLabel ? group.dateLabel.toString().replace(/[<>&]/g, (match) => {
+        return match === '<' ? '&lt;' : match === '>' ? '&gt;' : '&amp;';
+      }) : '';
 
       const progress = document.createElement('div');
       progress.className = 'progress';
-      progress.textContent = group.progress;
+      // Sanitize the progress text to prevent XSS
+      progress.textContent = group.progress ? group.progress.toString().replace(/[<>&]/g, (match) => {
+        return match === '<' ? '&lt;' : match === '>' ? '&gt;' : '&amp;';
+      }) : '';
 
       dateGroup.appendChild(dateLabel);
       dateGroup.appendChild(progress);
@@ -458,7 +679,10 @@ async function loadHistoryTasks() {
 
         const taskTitle = document.createElement('div');
         taskTitle.className = 'task-title';
-        taskTitle.textContent = task.title;
+        // Sanitize the task title to prevent XSS
+        taskTitle.textContent = task.title ? task.title.toString().replace(/[<>&]/g, (match) => {
+          return match === '<' ? '&lt;' : match === '>' ? '&gt;' : '&amp;';
+        }) : '';
 
         taskItem.appendChild(taskTitle);
         historyContainer.appendChild(taskItem);
@@ -466,6 +690,10 @@ async function loadHistoryTasks() {
     });
   } catch (error) {
     console.error('Failed to load history tasks:', error);
+    const historyContainer = document.getElementById('historyTasks');
+    if (historyContainer) {
+      historyContainer.innerHTML = '<p>Failed to load task history. Please refresh the page.</p>';
+    }
   }
 }
 
@@ -600,4 +828,289 @@ document.getElementById('keteranganForm').addEventListener('submit', async (e) =
 
 document.getElementById('cancelKeterangan').addEventListener('click', () => {
   document.getElementById('keteranganDlg').close();
+});
+
+// Initialize authentication UI when the page loads
+document.addEventListener('DOMContentLoaded', () => {
+  updateAuthUI();
+});
+
+// Check if this is the main page and enforce authentication
+function enforceAuthOnMainPage() {
+  // Check if we're on the main index page (not login or register)
+  if (window.location.pathname.endsWith('index.html') || window.location.pathname === '/') {
+    if (!isLoggedIn()) {
+      // Redirect to login page if not authenticated on main page
+      window.location.href = 'login.html';
+    }
+  }
+}
+
+// Enforce authentication when DOM is loaded
+document.addEventListener('DOMContentLoaded', () => {
+  enforceAuthOnMainPage();
+
+  const logoutBtn = document.getElementById('logoutBtn');
+  if (logoutBtn) {
+    logoutBtn.addEventListener('click', logout);
+  }
+
+  updateAuthUI();
+});
+
+function getUserInfo() {
+  const tokenData = localStorage.getItem('authToken');
+  if (tokenData) {
+    try {
+      const parsed = JSON.parse(tokenData);
+      return parsed.user || parsed;
+    } catch (e) {
+      console.error('Error parsing user info:', e);
+      return null;
+    }
+  }
+  return null;
+}
+
+function logout() {
+  localStorage.removeItem('authToken');
+  localStorage.removeItem('loginTime'); // Also remove login time when logging out
+  localStorage.removeItem('tt_active'); // Clear running task state when logging out
+  // Stop session timeout checker when logging out
+  stopSessionTimeoutChecker();
+  // Reset running state variables
+  runningTaskId = null;
+  runningStart = null;
+  if (runningInterval) {
+    clearInterval(runningInterval);
+    runningInterval = null;
+  }
+  updateAuthUI();
+  // Reload the page to reset the app state
+  window.location.reload();
+}
+
+// Session timeout management
+function decodeJWT(token) {
+  try {
+    // Check if token looks like a JWT (has two dots forming three parts)
+    if (!token || typeof token !== 'string' || !token.includes('.')) {
+      console.warn('Token is not in JWT format');
+      return null;
+    }
+
+    // Split the JWT token to get the payload
+    const parts = token.split('.');
+    if (parts.length !== 3) {
+      console.warn('JWT does not have 3 parts');
+      return null;
+    }
+
+    // Decode the payload (second part)
+    // The payload is base64url encoded, so we need to convert it to base64 first
+    let payload = parts[1];
+    // Add padding if needed
+    payload = payload.replace(/-/g, '+').replace(/_/g, '/');
+    while (payload.length % 4) {
+      payload += '=';
+    }
+
+    const decodedPayload = atob(payload);
+    const payloadObj = JSON.parse(decodedPayload);
+    return payloadObj;
+  } catch (e) {
+    console.error('Error decoding JWT:', e);
+    return null;
+  }
+}
+
+function getSessionExpirationTime() {
+  const token = getAuthToken();
+  if (!token) return null;
+
+  const decoded = decodeJWT(token);
+  if (!decoded || !decoded.exp) {
+    // If we can't decode the expiration from the JWT, return null
+    // This means we can't determine the exact expiration time
+    return null;
+  }
+
+  // Convert expiration timestamp to milliseconds
+  return decoded.exp * 1000;
+}
+
+function getRemainingSessionTime() {
+  const expirationTime = getSessionExpirationTime();
+
+  if (!expirationTime) {
+    // If we can't get the expiration time from the JWT, we'll implement a fallback
+    // by storing the login time and assuming a standard session duration
+    const loginTime = localStorage.getItem('loginTime');
+    if (!loginTime) {
+      // If we don't have a login time recorded, we can't calculate remaining time
+      return null;
+    }
+
+    // Assume a 1-hour session duration (3600000 ms) as default
+    const sessionDuration = 60 * 60 * 1000; // 1 hour in milliseconds
+    const loginTimestamp = parseInt(loginTime);
+    const expirationTimeFromLogin = loginTimestamp + sessionDuration;
+    const currentTime = Date.now();
+    const remainingTime = expirationTimeFromLogin - currentTime;
+
+    return Math.max(0, remainingTime);
+  }
+
+  const currentTime = Date.now();
+  const remainingTime = expirationTime - currentTime;
+
+  return Math.max(0, remainingTime);
+}
+
+function formatTime(milliseconds) {
+  if (milliseconds <= 0) return 'Expired';
+
+  const totalSeconds = Math.floor(milliseconds / 1000);
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+
+  if (hours > 0) {
+    return `${hours}h ${minutes}m ${seconds}s`;
+  } else if (minutes > 0) {
+    return `${minutes}m ${seconds}s`;
+  } else {
+    return `${seconds}s`;
+  }
+}
+
+let sessionTimeoutInterval = null;
+
+function startSessionTimeoutChecker() {
+  // Clear any existing interval
+  if (sessionTimeoutInterval) {
+    clearInterval(sessionTimeoutInterval);
+  }
+
+  // Update the session timer immediately
+  updateSessionTimerDisplay();
+
+  // Set up interval to update the timer every second
+  sessionTimeoutInterval = setInterval(() => {
+    updateSessionTimerDisplay();
+  }, 1000);
+}
+
+function updateSessionTimerDisplay() {
+  const remainingTime = getRemainingSessionTime();
+  const sessionTimerElement = document.getElementById('sessionTimer');
+
+  if (sessionTimerElement) {
+    if (remainingTime === null) {
+      sessionTimerElement.textContent = '';
+      sessionTimerElement.style.display = 'none';
+    } else if (remainingTime <= 0) {
+      sessionTimerElement.innerHTML = `🔒 <strong>Session Expired</strong> - Logging out...`;
+      // Adjust color based on theme
+      const isLightTheme = document.body.classList.contains('light');
+      sessionTimerElement.style.color = isLightTheme ? '#000000' : '#ff4444'; // Black in light mode, red in dark mode
+      sessionTimerElement.style.fontWeight = 'bold';
+      sessionTimerElement.style.display = 'inline-block';
+      // Automatically log out when session expires
+      setTimeout(() => {
+        logout();
+      }, 2000); // Wait 2 seconds before logging out to show the message
+    } else {
+      // Format the time with more visual appeal
+      const formattedTime = formatTime(remainingTime);
+      sessionTimerElement.innerHTML = `⏱️ <strong>Expires in:</strong> ${formattedTime}`;
+      // Adjust color based on theme
+      const isLightTheme = document.body.classList.contains('light');
+      sessionTimerElement.style.color = isLightTheme ? '#000000' : '#ffffff'; // Black in light mode, white in dark mode
+      sessionTimerElement.style.display = 'inline-block';
+
+      // Change appearance when session is about to expire (less than 10 minutes)
+      if (remainingTime < 10 * 60 * 1000) {
+        // Adjust warning color based on theme
+        sessionTimerElement.style.color = isLightTheme ? '#cc7700' : '#ff9900'; // Darker orange in light mode
+        sessionTimerElement.style.fontWeight = 'bold';
+
+        // Add pulsing animation when critically low (less than 5 minutes)
+        if (remainingTime < 5 * 60 * 1000) {
+          sessionTimerElement.style.animation = 'pulse 1s infinite';
+          sessionTimerElement.style.color = isLightTheme ? '#cc0000' : '#ff5555'; // Darker red in light mode
+        } else {
+          sessionTimerElement.style.animation = 'none';
+        }
+      } else {
+        sessionTimerElement.style.animation = 'none';
+      }
+    }
+  }
+}
+
+function stopSessionTimeoutChecker() {
+  if (sessionTimeoutInterval) {
+    clearInterval(sessionTimeoutInterval);
+    sessionTimeoutInterval = null;
+  }
+
+  const sessionTimerElement = document.getElementById('sessionTimer');
+  if (sessionTimerElement) {
+    sessionTimerElement.style.display = 'none';
+  }
+}
+
+function updateAuthUI() {
+  const authControls = document.getElementById('authControls');
+  const userMenu = document.getElementById('userMenu');
+  const userName = document.getElementById('userName');
+
+  if (isLoggedIn()) {
+    // Check if session has expired based on our fallback mechanism
+    const remainingTime = getRemainingSessionTime();
+    if (remainingTime !== null && remainingTime <= 0) {
+      // Session has expired, log out the user
+      logout();
+      return;
+    }
+
+    // Show user menu
+    authControls.style.display = 'none';
+    userMenu.style.display = 'flex';
+
+    const userInfo = getUserInfo();
+    if (userInfo && userInfo.nama_lengkap) {
+      userName.textContent = userInfo.nama_lengkap;
+    } else if (userInfo && userInfo.username) {
+      userName.textContent = userInfo.username;
+    } else if (userInfo && userInfo.email) {
+      userName.textContent = userInfo.email;
+    }
+
+    // Start session timeout checker when user is logged in
+    startSessionTimeoutChecker();
+  } else {
+    // Show auth controls
+    authControls.style.display = 'flex';
+    userMenu.style.display = 'none';
+
+    // Stop session timeout checker when user is logged out
+    stopSessionTimeoutChecker();
+  }
+}
+
+// Add logout button event listener when DOM is loaded
+document.addEventListener('DOMContentLoaded', () => {
+  const logoutBtn = document.getElementById('logoutBtn');
+  if (logoutBtn) {
+    logoutBtn.addEventListener('click', logout);
+  }
+
+  updateAuthUI();
+
+  // Initialize session timeout checker if user is already logged in
+  if (isLoggedIn()) {
+    startSessionTimeoutChecker();
+  }
 });

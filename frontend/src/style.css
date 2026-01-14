@@ -83,6 +83,45 @@ body.light .stat-card {background: #ffffff; color: #0f172a;}
 body.light .stat-card h3 {color: #64748b;}
 body.light .stat-card .stat-value {color: #0f172a;}
 
+/* Authentication Controls */
+.btn-primary {
+  background-color: #007bff;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 8px;
+  text-decoration: none;
+  font-size: 14px;
+  cursor: pointer;
+  display: inline-block;
+}
+.btn-primary:hover {
+  background-color: #0056b3;
+}
+.btn-secondary {
+  background-color: transparent;
+  color: inherit;
+  border: 1px solid rgba(255,255,255,0.08);
+  padding: 8px 16px;
+  border-radius: 8px;
+  text-decoration: none;
+  font-size: 14px;
+  cursor: pointer;
+  display: inline-block;
+}
+.btn-secondary:hover {
+  background-color: rgba(255,255,255,0.08);
+}
+#userMenu {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+#userName {
+  margin-right: 10px;
+  font-size: 14px;
+}
+
 /* Theme toggle small styling */
 #themeToggle{margin-left:8px}
 
@@ -143,3 +182,20 @@ body.light .history-date-group .date-label {color: #0f172a;}
 body.light .history-date-group .progress {background: rgba(37,99,235,0.08); color: #0f172a;}
 body.light .history-date-group .date-label.hari-ini {color: #2563eb;}
 body.light .history-tasks .task-title {color: #0f172a;}
+
+/* Error message styling */
+.error-message {
+  padding: 12px;
+  background-color: #fee2e2;
+  color: #dc2626;
+  border-radius: 8px;
+  text-align: center;
+  margin: 10px 0;
+  border: 1px solid #fecaca;
+}
+
+body.light .error-message {
+  background-color: #fef2f2;
+  color: #b91c1c;
+  border: 1px solid #fecaca;
+}
