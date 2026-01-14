@@ -1,14 +1,23 @@
 {
   "version": 2,
   "name": "time-tracker-app",
+  "functions": {
+    "api/index.js": {
+      "includeFiles": "src/**/*"
+    }
+  },
   "rewrites": [
     {
-      "source": "/auth/:path*",
-      "destination": "/index.js"
+      "source": "/auth/(.*)",
+      "destination": "/api/index.js"
     },
     {
-      "source": "/api/:path*",
-      "destination": "/index.js"
+      "source": "/api/(.*)",
+      "destination": "/api/index.js"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/"
     }
   ]
 }

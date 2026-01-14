@@ -1,13 +1,14 @@
-// Vercel-compatible serverless function
-// This creates a unified API handler for Vercel deployment
+// Vercel API route handler
 require('dotenv').config();
 const express = require('express');
 const path = require('path');
+const cors = require('cors');
 
 // Create an Express app
 const app = express();
 
 // Enable CORS for all routes
+app.use(cors());
 app.use((req, res, next) => {
   res.header('Access-Control-Allow-Origin', '*');
   res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
@@ -25,12 +26,11 @@ app.use((req, res, next) => {
 app.use(express.json());
 
 try {
-  // Import authentication routes and middleware
-  const authRoutes = require('./src/auth/routes');
-  const { authenticateUser } = require('./src/middleware/auth');
+  // Import authentication routes
+  const authRoutes = require('../src/auth/routes');
 
   // Import task routes
-  const taskRoutes = require('./src/tasks/routes');
+  const taskRoutes = require('../src/tasks/routes');
 
   // Mount authentication routes BEFORE static middleware to prevent conflicts
   app.use('/auth', authRoutes);
@@ -44,12 +44,12 @@ try {
 
 // Serve static files from the current directory (where frontend files are copied)
 // This should come AFTER all API and auth routes to prevent conflicts
-app.use(express.static(__dirname));
+app.use(express.static(path.join(__dirname, '..')));
 
 // Specific routes for static files to ensure they work in Vercel environment
 app.get('/style.css', (req, res) => {
   try {
-    res.sendFile(path.join(__dirname, 'style.css'));
+    res.sendFile(path.join(__dirname, '..', 'style.css'));
   } catch (error) {
     res.status(500).send('Error serving CSS file');
   }
@@ -57,7 +57,7 @@ app.get('/style.css', (req, res) => {
 
 app.get('/app.js', (req, res) => {
   try {
-    res.sendFile(path.join(__dirname, 'app.js'));
+    res.sendFile(path.join(__dirname, '..', 'app.js'));
   } catch (error) {
     res.status(500).send('Error serving JS file');
   }
@@ -66,7 +66,7 @@ app.get('/app.js', (req, res) => {
 // Specific routes for HTML pages to ensure they work in Vercel environment
 app.get('/login.html', (req, res) => {
   try {
-    res.sendFile(path.join(__dirname, 'login.html'));
+    res.sendFile(path.join(__dirname, '..', 'login.html'));
   } catch (error) {
     res.status(500).send('Error serving login page');
   }
@@ -74,7 +74,7 @@ app.get('/login.html', (req, res) => {
 
 app.get('/register.html', (req, res) => {
   try {
-    res.sendFile(path.join(__dirname, 'register.html'));
+    res.sendFile(path.join(__dirname, '..', 'register.html'));
   } catch (error) {
     res.status(500).send('Error serving register page');
   }
@@ -83,7 +83,7 @@ app.get('/register.html', (req, res) => {
 // Root route to serve the main HTML file
 app.get('/', (req, res) => {
   try {
-    res.sendFile(path.join(__dirname, 'index.html'));
+    res.sendFile(path.join(__dirname, '..', 'index.html'));
   } catch (error) {
     res.status(500).send('Error serving main page');
   }
@@ -95,55 +95,34 @@ app.get('*', (req, res) => {
     // Check if the requested path corresponds to a static file
     const requestedPath = req.path;
     if (requestedPath.endsWith('.html')) {
-      const filePath = path.join(__dirname, requestedPath);
+      const filePath = path.join(__dirname, '..', requestedPath);
       // Send the specific HTML file if it exists
       res.sendFile(filePath, (err) => {
         if (err) {
           // If the file doesn't exist, serve the main index.html
-          res.sendFile(path.join(__dirname, 'index.html'));
+          res.sendFile(path.join(__dirname, '..', 'index.html'));
         }
       });
     } else {
       // For any other route that doesn't match static assets, serve index.html
       // This enables client-side routing for SPA behavior
-      res.sendFile(path.join(__dirname, 'index.html'));
+      res.sendFile(path.join(__dirname, '..', 'index.html'));
     }
   } catch (error) {
     res.status(500).send('Error serving page');
   }
 });
 
-// For local development, start the server if this file is run directly
-if (require.main === module) {
-  const PORT = process.env.PORT || 3000;
-  const HOST = process.env.HOST || 'localhost';
-  const NODE_ENV = process.env.NODE_ENV || 'development';
+// For Vercel serverless functions, we need to export a handler
+module.exports = async (req, res) => {
+  // Handle preflight requests
+  if (req.method === 'OPTIONS') {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    return res.status(200).end();
+  }
 
-  app.listen(PORT, HOST, () => {
-    const baseUrl = NODE_ENV === 'production'
-      ? (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : `http://${HOST}:${PORT}`)
-      : `http://${HOST}:${PORT}`;
-
-    console.log(`✅ Server running on port ${PORT}`);
-    console.log(`Environment: ${NODE_ENV}`);
-    console.log(`API Base URL: ${baseUrl}`);
-    console.log('Press Ctrl+C to stop the server');
-  });
-} else {
-  // For Vercel serverless functions, we need to export a handler
-  module.exports = (req, res) => {
-    // Handle preflight requests
-    if (req.method === 'OPTIONS') {
-      res.setHeader('Access-Control-Allow-Origin', '*');
-      res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-      res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-      return res.status(200).end();
-    }
-
-    // Route the request to the Express app
-    app(req, res);
-  };
-}
-
-// Export the app for local development compatibility
-module.exports.app = app;
+  // Route the request to the Express app
+  app(req, res);
+};

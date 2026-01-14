@@ -121,11 +121,39 @@
             password
           })
         });
-        
+
+        // Check if the response is OK (status 200-299)
+        if (!response.ok) {
+          // Handle error response
+          let errorMessage = "Login failed. Please try again.";
+
+          // Try to get error message from response body
+          try {
+            const errorResult = await response.json();
+            errorMessage = errorResult.message || errorMessage;
+          } catch (jsonError) {
+            // If response is not JSON, try to get text
+            try {
+              const errorText = await response.text();
+              if (errorText) {
+                errorMessage = errorText;
+              }
+            } catch (textError) {
+              // If we can't parse the error, use generic message based on status
+              errorMessage = `Login failed with status ${response.status}`;
+            }
+          }
+
+          const messageDiv = document.getElementById("message");
+          messageDiv.innerHTML = "<div class=\"message error\">" + errorMessage + "</div>";
+          return; // Exit early since login failed
+        }
+
+        // If response is OK, parse the JSON
         const result = await response.json();
-        
+
         const messageDiv = document.getElementById("message");
-        
+
         if (result.success) {
           messageDiv.innerHTML = "<div class=\"message success\">Login successful! Redirecting...</div>";
 
