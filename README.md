@@ -31,6 +31,7 @@ The backend follows a modular architecture with the following structure:
 
 ```
 backend/
+├── api/                      # API routes directory
 ├── src/
 │   ├── auth/                 # Authentication module
 │   │   ├── controller.js     # Authentication business logic
@@ -53,7 +54,8 @@ backend/
 ├── index.html                # Main HTML
 ├── login.html                # Login page
 ├── register.html             # Registration page
-└── ...
+├── vercel.json               # Vercel deployment configuration
+└── package.json              # Project dependencies and scripts
 ```
 
 ## 📋 Prerequisites
